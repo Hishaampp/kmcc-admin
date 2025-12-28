@@ -26,41 +26,28 @@ export default function MonthlyPaymentsPage() {
   const currentYear = new Date().getFullYear();
   const YEARS = Array.from({ length: currentYear - 2023 + 3 }, (_, i) => 2023 + i);
 
-  // Fetch Projects
-  const fetchProjects = async () => {
-    const s = await getDocs(collection(db, "projects"));
-    setProjects(s.docs.map(d => ({ id: d.id, ...d.data() })));
-  };
-
-  // Fetch Units
-  const fetchUnits = async () => {
-    const s = await getDocs(collection(db, "units"));
-    setUnits(s.docs.map(d => ({ id: d.id, ...d.data() })));
-  };
-
-  // Fetch Members
-  const fetchMembers = async () => {
-    const s = await getDocs(collection(db, "members"));
-    setMembers(s.docs.map(d => ({ id: d.id, ...d.data() })));
-  };
-
-  // Fetch Payments
-  const fetchPayments = async () => {
-    const s = await getDocs(collection(db, "payments"));
-    setPayments(s.docs.map(d => ({ id: d.id, ...d.data() })));
-  };
-
+  // FETCH DATA
   useEffect(() => {
-    fetchProjects();
-    fetchUnits();
-    fetchMembers();
-    fetchPayments();
+    const load = async () => {
+      const p = await getDocs(collection(db, "projects"));
+      setProjects(p.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      const u = await getDocs(collection(db, "units"));
+      setUnits(u.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      const m = await getDocs(collection(db, "members"));
+      setMembers(m.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      const pay = await getDocs(collection(db, "payments"));
+      setPayments(pay.docs.map(d => ({ id: d.id, ...d.data() })));
+    };
+
+    load();
   }, []);
 
-  // 🔥 Convert ANY month text → 0-11 index
+  // Convert Month -> Index
   const getMonthIndex = (value: string) => {
     if (!value) return null;
-
     const clean = value.trim().toLowerCase();
 
     const months = [
@@ -68,12 +55,10 @@ export default function MonthlyPaymentsPage() {
       "july","august","september","october","november","december"
     ];
 
-    // Case → "June", "June 2024", "june paid"
     for (let i = 0; i < months.length; i++) {
       if (clean.includes(months[i])) return i;
     }
 
-    // Case → "06" or "6"
     const num = parseInt(clean);
     if (!isNaN(num) && num >= 1 && num <= 12) return num - 1;
 
@@ -82,27 +67,35 @@ export default function MonthlyPaymentsPage() {
 
   const selectedMonthIndex = getMonthIndex(month);
 
-  // FILTER PAYMENTS
+  // ==============================
+  //  FILTER PAYMENTS 🔥 FIXED
+  // ==============================
   const filteredPayments = payments.filter(p => {
-    if (!month || !year || !projectId) return false;
+    if (!month || !projectId) return false;
 
     const paymentMonthIndex = getMonthIndex(p.month);
     const matchesMonth = paymentMonthIndex === selectedMonthIndex;
 
-    const savedYear =
-      p.year
-        ? Number(p.year)
-        : p.createdAt?.toDate
-        ? p.createdAt.toDate().getFullYear()
-        : null;
-
-    const matchesYear = savedYear == Number(year);
     const matchesProject = p.projectId === projectId;
     const matchesUnit = unitId ? p.unitId === unitId : true;
+
+    let matchesYear = true;
+
+    if (year) {
+      if (p.year) {
+        matchesYear = String(p.year) === String(year);
+      } else if (p.createdAt?.toDate) {
+        matchesYear =
+          p.createdAt.toDate().getFullYear() === Number(year);
+      } else {
+        matchesYear = true; // allow old payments
+      }
+    }
 
     return matchesMonth && matchesYear && matchesProject && matchesUnit;
   });
 
+  // PAID VS PENDING
   const paidMemberIds = new Set(filteredPayments.map(p => p.memberId));
 
   const relevantMembers = members.filter(m => {
@@ -137,52 +130,24 @@ export default function MonthlyPaymentsPage() {
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
 
-        {/* Project */}
-        <select
-          value={projectId}
-          onChange={e => setProjectId(e.target.value)}
-          className="border rounded px-3 py-2 text-gray-900"
-        >
+        <select value={projectId} onChange={e => setProjectId(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
           <option value="">Select Project</option>
-          {projects.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
 
-        {/* Unit */}
-        <select
-          value={unitId}
-          onChange={e => setUnitId(e.target.value)}
-          className="border rounded px-3 py-2 text-gray-900"
-        >
+        <select value={unitId} onChange={e => setUnitId(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
           <option value="">All Units</option>
-          {units.map(u => (
-            <option key={u.id} value={u.id}>{u.name}</option>
-          ))}
+          {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
 
-        {/* Month */}
-        <select
-          value={month}
-          onChange={e => setMonth(e.target.value)}
-          className="border rounded px-3 py-2 text-gray-900"
-        >
+        <select value={month} onChange={e => setMonth(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
           <option value="">Select Month</option>
-          {MONTHS.map(m => (
-            <option key={m} value={m}>{m}</option>
-          ))}
+          {MONTHS.map(m => <option key={m}>{m}</option>)}
         </select>
 
-        {/* Year */}
-        <select
-          value={year}
-          onChange={e => setYear(e.target.value)}
-          className="border rounded px-3 py-2 text-gray-900"
-        >
+        <select value={year} onChange={e => setYear(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
           <option value="">Select Year</option>
-          {YEARS.map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
+          {YEARS.map(y => <option key={y}>{y}</option>)}
         </select>
 
       </div>
@@ -192,39 +157,29 @@ export default function MonthlyPaymentsPage() {
 
         <div className="bg-white p-5 rounded-xl border shadow">
           <p className="text-sm text-gray-600">Total Collected</p>
-          <h2 className="text-2xl font-bold text-green-700">
-            ₹{totalAmount}
-          </h2>
+          <h2 className="text-2xl font-bold text-green-700">₹{totalAmount}</h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow">
           <p className="text-sm text-gray-600">Payments Recorded</p>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {filteredPayments.length}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900">{filteredPayments.length}</h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow">
           <p className="text-sm text-gray-600">Members Paid</p>
-          <h2 className="text-2xl font-bold text-green-700">
-            {paidMemberIds.size}
-          </h2>
+          <h2 className="text-2xl font-bold text-green-700">{paidMemberIds.size}</h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow">
           <p className="text-sm text-gray-600">Pending Members</p>
-          <h2 className="text-2xl font-bold text-red-700">
-            {pendingMembers.length}
-          </h2>
+          <h2 className="text-2xl font-bold text-red-700">{pendingMembers.length}</h2>
         </div>
 
       </div>
 
-      {/* Paid List */}
+      {/* Paid Members */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Paid Members
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Paid Members</h2>
 
         {filteredPayments.length === 0 && (
           <p className="text-gray-600">No payments found.</p>
@@ -236,19 +191,15 @@ export default function MonthlyPaymentsPage() {
               <span className="font-medium text-gray-900">
                 {p.memberName} ({p.memberNumber})
               </span>
-              <span className="text-green-700 font-bold">
-                ₹{p.amount}
-              </span>
+              <span className="text-green-700 font-bold">₹{p.amount}</span>
             </li>
           ))}
         </ul>
       </div>
 
-      {/* Pending List */}
+      {/* Pending Members */}
       <div className="bg-white p-4 rounded-xl border shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Pending Members
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Pending Members</h2>
 
         {pendingMembers.length === 0 && (
           <p className="text-gray-600">No pending members.</p>
@@ -260,9 +211,7 @@ export default function MonthlyPaymentsPage() {
               <span className="font-medium text-gray-900">
                 {m.name} ({m.number})
               </span>
-              <span className="text-red-700 font-bold">
-                Pending
-              </span>
+              <span className="text-red-700 font-bold">Pending</span>
             </li>
           ))}
         </ul>
