@@ -27,34 +27,31 @@ export default function MembersPage() {
 
   // Quit States
   const [showQuitBox, setShowQuitBox] = useState(false);
-  const [quitMemberId, setQuitMemberId] = useState("");
+  const [quitMember, setQuitMember] = useState<any>(null);
   const [projectIdForQuit, setProjectIdForQuit] = useState("");
   const [quitNote, setQuitNote] = useState("");
 
-  // Edit States
+  // Edit
   const [showEditBox, setShowEditBox] = useState(false);
-  const [editMemberId, setEditMemberId] = useState("");
-  const [editName, setEditName] = useState("");
-  const [editNumber, setEditNumber] = useState("");
-  const [editUnit, setEditUnit] = useState("");
+  const [editMember, setEditMember] = useState<any>(null);
 
-  // Delete State
+  // Delete
   const [showDeleteBox, setShowDeleteBox] = useState(false);
   const [deleteMemberId, setDeleteMemberId] = useState("");
 
   const fetchUnits = async () => {
     const snap = await getDocs(collection(db, "units"));
-    setUnits(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setUnits(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
   const fetchMembers = async () => {
     const snap = await getDocs(collection(db, "members"));
-    setMembers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
   const fetchProjects = async () => {
     const snap = await getDocs(collection(db, "projects"));
-    setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
   useEffect(() => {
@@ -63,11 +60,11 @@ export default function MembersPage() {
     fetchProjects();
   }, []);
 
-  // Add Member
+  // ADD MEMBER
   const addMember = async () => {
     if (!memberName.trim() || !memberNumber.trim() || !selectedUnit) return;
 
-    const unit = units.find((u) => u.id === selectedUnit);
+    const unit = units.find(u => u.id === selectedUnit);
 
     await addDoc(collection(db, "members"), {
       name: memberName,
@@ -84,50 +81,41 @@ export default function MembersPage() {
     fetchMembers();
   };
 
-  // Quit Member
+  // QUIT MEMBER
   const markAsQuit = async () => {
-    if (!quitMemberId || !projectIdForQuit) return;
+    if (!quitMember || !projectIdForQuit) return;
 
-    const member = members.find((m) => m.id === quitMemberId);
-    const project = projects.find((p) => p.id === projectIdForQuit);
-    if (!member) return;
+    const project = projects.find(p => p.id === projectIdForQuit);
 
-    await updateDoc(doc(db, "members", quitMemberId), {
+    await updateDoc(doc(db, "members", quitMember.id), {
       status: "quit",
       quitProjectId: projectIdForQuit,
       quitProjectName: project?.name || "",
-      quitUnitId: member.unitId,
-      quitUnitName: member.unitName,
+      quitUnitId: quitMember.unitId,
+      quitUnitName: quitMember.unitName,
       quitDate: serverTimestamp(),
       quitNote,
     });
 
     setShowQuitBox(false);
+    setQuitMember(null);
     setQuitNote("");
-    setQuitMemberId("");
     setProjectIdForQuit("");
     fetchMembers();
   };
 
-  // Edit Member
-  const openEdit = (m: any) => {
-    setEditMemberId(m.id);
-    setEditName(m.name);
-    setEditNumber(m.number);
-    setEditUnit(m.unitId);
-    setShowEditBox(true);
-  };
-
+  // EDIT
   const saveEdit = async () => {
-    if (!editMemberId || !editName.trim() || !editNumber.trim() || !editUnit)
+    if (!editMember) return;
+    if (!editMember.name.trim() || !editMember.number.trim() || !editMember.unitId)
       return;
 
-    const unit = units.find((u) => u.id === editUnit);
+    const unit = units.find(u => u.id === editMember.unitId);
 
-    await updateDoc(doc(db, "members", editMemberId), {
-      name: editName,
-      number: editNumber,
-      unitId: editUnit,
+    await updateDoc(doc(db, "members", editMember.id), {
+      name: editMember.name,
+      number: editMember.number,
+      unitId: editMember.unitId,
       unitName: unit?.name || "",
     });
 
@@ -135,7 +123,7 @@ export default function MembersPage() {
     fetchMembers();
   };
 
-  // Delete Member
+  // DELETE
   const deleteMember = async () => {
     if (!deleteMemberId) return;
 
@@ -144,8 +132,8 @@ export default function MembersPage() {
     fetchMembers();
   };
 
-  // Filter + Search
-  const filteredMembers = members.filter((m) => {
+  // FILTER
+  const filteredMembers = members.filter(m => {
     const matchUnit = selectedUnit === "" ? true : m.unitId === selectedUnit;
     const matchSearch =
       m.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -156,73 +144,73 @@ export default function MembersPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-8">
 
-      {/* BACK BUTTON */}
+      {/* BACK */}
       <button
         onClick={() => router.back()}
-        className="mb-4 px-4 py-2 bg-black text-white rounded-lg hover:opacity-80"
+        className="mb-4 px-4 py-2 bg-black text-white rounded hover:opacity-80"
       >
         ← Back
       </button>
 
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">Manage Members</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">
+        Manage Members
+      </h1>
 
       {/* ADD MEMBER */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6">
-        <h2 className="text-lg font-semibold mb-3 text-gray-800">Add New Member</h2>
+        <h2 className="text-lg font-semibold mb-3 text-gray-900">Add New Member</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-
           <select
             value={selectedUnit}
-            onChange={(e) => setSelectedUnit(e.target.value)}
-            className="border rounded px-3 py-2 w-full text-black placeholder-gray-800"
+            onChange={e => setSelectedUnit(e.target.value)}
+            className="border rounded px-3 py-2 text-black"
           >
             <option value="">Select Unit</option>
-            {units.map((u) => (
+            {units.map(u => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
           </select>
 
           <input
             value={memberNumber}
-            onChange={(e) => setMemberNumber(e.target.value)}
+            onChange={e => setMemberNumber(e.target.value)}
             placeholder="Member Number"
-            className="border rounded px-3 py-2 w-full text-black placeholder-gray-800"
+            className="border rounded px-3 py-2 text-black"
           />
 
           <input
             value={memberName}
-            onChange={(e) => setMemberName(e.target.value)}
+            onChange={e => setMemberName(e.target.value)}
             placeholder="Member Name"
-            className="border rounded px-3 py-2 w-full text-black placeholder-gray-800"
+            className="border rounded px-3 py-2 text-black"
           />
         </div>
 
         <button
           onClick={addMember}
-          className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
         >
           Add Member
         </button>
       </div>
 
-      {/* SEARCH */}
+      {/* SEARCH + FILTER */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex flex-col md:flex-row gap-3">
-
         <input
-          placeholder="Search by name or member number..."
+          placeholder="Search by name or number"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border rounded px-3 py-2 w-full text-black placeholder-gray-800"
+          onChange={e => setSearch(e.target.value)}
+          className="border rounded px-3 py-2 text-black w-full"
         />
 
         <select
           value={selectedUnit}
-          onChange={(e) => setSelectedUnit(e.target.value)}
-          className="border rounded px-3 py-2 w-full md:w-60 text-black placeholder-gray-800"
+          onChange={e => setSelectedUnit(e.target.value)}
+          className="border rounded px-3 py-2 text-black w-full md:w-60"
         >
           <option value="">All Units</option>
-          {units.map((u) => (
+          {units.map(u => (
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
@@ -230,18 +218,15 @@ export default function MembersPage() {
 
       {/* LIST */}
       <div className="bg-white rounded-xl border shadow-sm p-4">
-        <h2 className="text-lg font-semibold mb-3 text-gray-800">Members List</h2>
+        <h2 className="text-lg font-semibold mb-3 text-gray-900">Members List</h2>
 
         {filteredMembers.length === 0 && (
           <p className="text-gray-600">No members found.</p>
         )}
 
         <ul className="space-y-2">
-          {filteredMembers.map((m) => (
-            <li
-              key={m.id}
-              className="p-3 border rounded-lg bg-gray-50 flex justify-between items-center"
-            >
+          {filteredMembers.map(m => (
+            <li key={m.id} className="p-3 border rounded bg-gray-50 flex justify-between">
               <div>
                 <p className="font-semibold text-gray-900">
                   {m.name}
@@ -249,8 +234,8 @@ export default function MembersPage() {
                     <span className="ml-2 text-sm text-red-600">(Quit)</span>
                   )}
                 </p>
-                <p className="text-sm text-gray-600">#{m.number}</p>
-                <p className="text-xs text-gray-500">{m.unitName}</p>
+                <p className="text-sm text-gray-700">#{m.number}</p>
+                <p className="text-xs text-gray-600">{m.unitName}</p>
               </div>
 
               <div className="flex gap-2">
@@ -258,18 +243,21 @@ export default function MembersPage() {
                 {m.status === "active" && (
                   <button
                     onClick={() => {
-                      setQuitMemberId(m.id);
+                      setQuitMember(m);
                       setShowQuitBox(true);
                     }}
-                    className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm"
+                    className="px-3 py-1 bg-red-600 text-white rounded text-sm"
                   >
                     Quit
                   </button>
                 )}
 
                 <button
-                  onClick={() => openEdit(m)}
-                  className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm"
+                  onClick={() => {
+                    setEditMember({ ...m });
+                    setShowEditBox(true);
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
                 >
                   Edit
                 </button>
@@ -279,7 +267,7 @@ export default function MembersPage() {
                     setDeleteMemberId(m.id);
                     setShowDeleteBox(true);
                   }}
-                  className="px-3 py-1 bg-black text-white rounded-lg text-sm"
+                  className="px-3 py-1 bg-black text-white rounded text-sm"
                 >
                   Delete
                 </button>
@@ -289,7 +277,114 @@ export default function MembersPage() {
         </ul>
       </div>
 
-      {/* POPUPS REMAIN SAME (Quit, Edit, Delete) — YOUR existing popups continue */}
+
+      {/* ========================== QUIT MODAL ========================== */}
+      {showQuitBox && quitMember && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-xl w-[380px]">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              Mark as Quit — {quitMember.name}
+            </h2>
+
+            <select
+              value={projectIdForQuit}
+              onChange={e => setProjectIdForQuit(e.target.value)}
+              className="border rounded px-3 py-2 w-full text-black mb-3"
+            >
+              <option value="">Select Project</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+
+            <textarea
+              placeholder="Quit Note (optional)"
+              value={quitNote}
+              onChange={e => setQuitNote(e.target.value)}
+              className="border rounded px-3 py-2 w-full text-black mb-3"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowQuitBox(false)} className="px-3 py-1 border rounded">
+                Cancel
+              </button>
+
+              <button onClick={markAsQuit} className="px-3 py-1 bg-red-600 text-white rounded">
+                Mark Quit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================== EDIT MODAL ========================== */}
+      {showEditBox && editMember && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-xl w-[380px]">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              Edit Member
+            </h2>
+
+            <input
+              value={editMember.name}
+              onChange={e => setEditMember({ ...editMember, name: e.target.value })}
+              className="border rounded px-3 py-2 w-full text-black mb-3"
+            />
+
+            <input
+              value={editMember.number}
+              onChange={e => setEditMember({ ...editMember, number: e.target.value })}
+              className="border rounded px-3 py-2 w-full text-black mb-3"
+            />
+
+            <select
+              value={editMember.unitId}
+              onChange={e => setEditMember({ ...editMember, unitId: e.target.value })}
+              className="border rounded px-3 py-2 w-full text-black mb-3"
+            >
+              {units.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowEditBox(false)} className="px-3 py-1 border rounded">
+                Cancel
+              </button>
+
+              <button onClick={saveEdit} className="px-3 py-1 bg-blue-600 text-white rounded">
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================== DELETE MODAL ========================== */}
+      {showDeleteBox && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-xl w-[360px] text-center">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Delete Member?
+            </h2>
+
+            <p className="text-gray-700 mb-4">
+              This action cannot be undone.
+            </p>
+
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setShowDeleteBox(false)} className="px-3 py-1 border rounded">
+                Cancel
+              </button>
+
+              <button onClick={deleteMember} className="px-3 py-1 bg-black text-white rounded">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

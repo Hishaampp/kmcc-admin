@@ -26,7 +26,9 @@ export default function MonthlyPaymentsPage() {
   const currentYear = new Date().getFullYear();
   const YEARS = Array.from({ length: currentYear - 2023 + 3 }, (_, i) => 2023 + i);
 
-  // FETCH DATA
+  // ======================
+  // FETCH ALL DATA
+  // ======================
   useEffect(() => {
     const load = async () => {
       const p = await getDocs(collection(db, "projects"));
@@ -45,7 +47,9 @@ export default function MonthlyPaymentsPage() {
     load();
   }, []);
 
-  // Convert Month -> Index
+  // ======================
+  // MONTH -> INDEX
+  // ======================
   const getMonthIndex = (value: string) => {
     if (!value) return null;
     const clean = value.trim().toLowerCase();
@@ -67,9 +71,22 @@ export default function MonthlyPaymentsPage() {
 
   const selectedMonthIndex = getMonthIndex(month);
 
-  // ==============================
-  //  FILTER PAYMENTS 🔥 FIXED
-  // ==============================
+  // ======================
+  // YEAR EXTRACTION
+  // ======================
+  const extractYear = (p: any) => {
+    if (p.year) return Number(p.year);
+
+    if (p.createdAt?.toDate) {
+      return p.createdAt.toDate().getFullYear();
+    }
+
+    return null; // year unknown (old records)
+  };
+
+  // ======================
+  // FILTER PAYMENTS  ✅ FINAL
+  // ======================
   const filteredPayments = payments.filter(p => {
     if (!month || !projectId) return false;
 
@@ -82,20 +99,23 @@ export default function MonthlyPaymentsPage() {
     let matchesYear = true;
 
     if (year) {
-      if (p.year) {
-        matchesYear = String(p.year) === String(year);
-      } else if (p.createdAt?.toDate) {
-        matchesYear =
-          p.createdAt.toDate().getFullYear() === Number(year);
+      const derivedYear = extractYear(p);
+
+      if (derivedYear) {
+        matchesYear = String(derivedYear) === String(year);
       } else {
-        matchesYear = true; // allow old payments
+        // IMPORTANT FIX
+        // If year is unknown, DO NOT block the record
+        matchesYear = true;
       }
     }
 
     return matchesMonth && matchesYear && matchesProject && matchesUnit;
   });
 
-  // PAID VS PENDING
+  // ======================
+  // PAID / PENDING
+  // ======================
   const paidMemberIds = new Set(filteredPayments.map(p => p.memberId));
 
   const relevantMembers = members.filter(m => {
