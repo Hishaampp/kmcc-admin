@@ -34,6 +34,7 @@ export default function Dashboard() {
           Welcome Super Admin 👋
         </h2>
 
+        {/* Main Sections */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* Projects */}
@@ -71,36 +72,84 @@ export default function Dashboard() {
               Manage Members
             </h3>
             <p className="text-gray-700 mt-1">
-              Add members under units with details.
+              Add & manage members under units.
             </p>
           </Link>
 
-          {/* Payments */}
+          {/* Payments Entry */}
           <Link
-            href="/dashboard/contributions"
+            href="/dashboard/payments"
             className="block p-6 bg-white rounded-xl border shadow-sm hover:shadow-md hover:bg-gray-50 transition"
           >
             <h3 className="text-lg font-semibold text-gray-900">
               Record Payments
             </h3>
             <p className="text-gray-700 mt-1">
-              Manually record payment amounts and history.
+              Enter member payments and view history records.
             </p>
           </Link>
 
           {/* Quit Members */}
-<Link
-  href="/dashboard/quit-members"
-  className="block p-4 border rounded-xl shadow-sm bg-white hover:bg-gray-50"
->
-  <h2 className="font-semibold text-gray-800">Quit Members Report</h2>
-  <p className="text-sm text-gray-600">
-    View members who quit and full payment history.
-  </p>
-</Link>
-
-
+          <Link
+            href="/dashboard/quit-members"
+            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Quit Members Report
+            </h3>
+            <p className="text-gray-700 mt-1">
+              View members who quit and full records.
+            </p>
+          </Link>
         </div>
+
+        {/* Payments Analytics Section */}
+        <h2 className="text-2xl font-bold text-gray-800 mt-10 mb-4">
+          Payments Analytics 📊
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* Monthly Dashboard */}
+          <Link
+            href="/dashboard/payments/monthly"
+            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Monthly Report
+            </h3>
+            <p className="text-gray-700 mt-1">
+              View month + year based collected & pending.
+            </p>
+          </Link>
+
+          {/* Yearly Dashboard - (Coming Soon Placeholder) */}
+          <Link
+            href="/dashboard/payments/yearly"
+            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Yearly Overview
+            </h3>
+            <p className="text-gray-700 mt-1">
+              Track yearly progress & totals.
+            </p>
+          </Link>
+
+          {/* Pending Report */}
+          <Link
+            href="/dashboard/payments/pending"
+            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Pending Payments
+            </h3>
+            <p className="text-gray-700 mt-1">
+              See who didn’t pay and follow up.
+            </p>
+          </Link>
+        </div>
+
       </div>
     </div>
   );

@@ -1,24 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import {
   collection,
   addDoc,
   getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
   serverTimestamp,
 } from "firebase/firestore";
 
 export default function UnitsPage() {
+  const router = useRouter();
+
   const [unitName, setUnitName] = useState("");
   const [units, setUnits] = useState<any[]>([]);
 
+  // Edit State
+  const [showEditBox, setShowEditBox] = useState(false);
+  const [editUnitId, setEditUnitId] = useState("");
+  const [editUnitName, setEditUnitName] = useState("");
+
+  // Delete State
+  const [showDeleteBox, setShowDeleteBox] = useState(false);
+  const [deleteUnitId, setDeleteUnitId] = useState("");
+
   // Fetch Units
   const fetchUnits = async () => {
-    const querySnapshot = await getDocs(collection(db, "units"));
-    const list: any[] = [];
-    querySnapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
-    setUnits(list);
+    const snap = await getDocs(collection(db, "units"));
+    setUnits(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   };
 
   useEffect(() => {
@@ -28,6 +41,7 @@ export default function UnitsPage() {
   // Add Unit
   const addUnit = async () => {
     if (!unitName.trim()) return;
+
     await addDoc(collection(db, "units"), {
       name: unitName,
       createdAt: serverTimestamp(),
@@ -37,17 +51,55 @@ export default function UnitsPage() {
     fetchUnits();
   };
 
+  // Open Edit
+  const openEdit = (unit: any) => {
+    setEditUnitId(unit.id);
+    setEditUnitName(unit.name);
+    setShowEditBox(true);
+  };
+
+  // Save Edit
+  const saveEdit = async () => {
+    if (!editUnitName.trim()) return;
+
+    await updateDoc(doc(db, "units", editUnitId), {
+      name: editUnitName,
+    });
+
+    setShowEditBox(false);
+    fetchUnits();
+  };
+
+  // Delete Unit
+  const deleteUnit = async () => {
+    await deleteDoc(doc(db, "units", deleteUnitId));
+    setShowDeleteBox(false);
+    fetchUnits();
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">Manage Units</h1>
 
+      {/* BACK BUTTON */}
+      <button
+        onClick={() => router.back()}
+        className="mb-4 px-4 py-2 bg-black text-white rounded-lg hover:opacity-80"
+      >
+        ← Back
+      </button>
+
+      <h1 className="text-2xl font-bold text-gray-800 mb-4">
+        Manage Units
+      </h1>
+
+      {/* Add Unit */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex gap-3">
         <input
-  value={unitName}
-  onChange={(e) => setUnitName(e.target.value)}
-  placeholder="Enter Unit Name"
-  className="border rounded px-3 py-2 w-full placeholder-gray-700 text-gray-900"
-/>
+          value={unitName}
+          onChange={(e) => setUnitName(e.target.value)}
+          placeholder="Enter Unit Name"
+          className="border rounded px-3 py-2 w-full text-black placeholder-gray-800"
+        />
 
         <button
           onClick={addUnit}
@@ -57,8 +109,11 @@ export default function UnitsPage() {
         </button>
       </div>
 
+      {/* Units List */}
       <div className="bg-white rounded-xl border shadow-sm p-4">
-        <h2 className="text-lg font-semibold mb-3 text-gray-800">All Units</h2>
+        <h2 className="text-lg font-semibold mb-3 text-gray-800">
+          All Units
+        </h2>
 
         {units.length === 0 && (
           <p className="text-gray-600">No units added yet.</p>
@@ -68,18 +123,104 @@ export default function UnitsPage() {
           {units.map((unit) => (
             <li
               key={unit.id}
-              className="p-3 border rounded-lg bg-gray-50 flex justify-between"
+              className="p-3 border rounded-lg bg-gray-50 flex justify-between items-center"
             >
-              <span className="font-medium text-gray-900">{unit.name}</span>
-              <span className="text-sm text-gray-600">
-                {unit.createdAt?.toDate
-                  ? unit.createdAt.toDate().toLocaleDateString()
-                  : ""}
-              </span>
+              <div>
+                <p className="font-medium text-gray-900">
+                  {unit.name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {unit.createdAt?.toDate
+                    ? unit.createdAt.toDate().toLocaleDateString()
+                    : ""}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openEdit(unit)}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => {
+                    setDeleteUnitId(unit.id);
+                    setShowDeleteBox(true);
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       </div>
+
+      {/* EDIT POPUP */}
+      {showEditBox && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-xl w-[360px] shadow-lg text-gray-900">
+            <h2 className="text-lg font-semibold mb-3">Edit Unit</h2>
+
+            <input
+              value={editUnitName}
+              onChange={(e) => setEditUnitName(e.target.value)}
+              className="border rounded px-3 py-2 w-full mb-3 text-black"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowEditBox(false)}
+                className="px-3 py-1 border rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={saveEdit}
+                className="px-3 py-1 bg-blue-600 text-white rounded"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE POPUP */}
+      {showDeleteBox && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-xl w-[360px] shadow-lg text-gray-900">
+            <h2 className="text-lg font-semibold mb-3 text-red-600">
+              Delete Unit ?
+            </h2>
+
+            <p className="text-gray-700 mb-4">
+              Are you sure you want to delete this unit?
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteBox(false)}
+                className="px-3 py-1 border rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={deleteUnit}
+                className="px-3 py-1 bg-red-600 text-white rounded"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
