@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import usePayments from "./hooks/use-payments";
 import PaymentForm from "./components/payment-form";
 import SummaryCards from "./components/summary-cards";
@@ -20,6 +21,8 @@ export default function PaymentsPage() {
     deletePaymentById,
   } = usePayments();
 
+  const [search, setSearch] = useState("");
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
@@ -28,7 +31,11 @@ export default function PaymentsPage() {
     );
   }
 
-  const totalAmount = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const totalAmount = payments.reduce(
+    (sum, p) => sum + Number(p.amount || 0),
+    0
+  );
+
   const uniqueMembers = new Set(payments.map((p) => p.memberId)).size;
   const uniqueUnits = new Set(payments.map((p) => p.unitId)).size;
 
@@ -51,9 +58,22 @@ export default function PaymentsPage() {
     });
   };
 
+  // 🔍 FILTER LOGIC
+  const filteredPayments = payments.filter((p) => {
+    const keyword = search.toLowerCase();
+
+    return (
+      p.memberName?.toLowerCase().includes(keyword) ||
+      p.memberNumber?.toLowerCase().includes(keyword) ||
+      p.unitName?.toLowerCase().includes(keyword) ||
+      p.projectName?.toLowerCase().includes(keyword)
+    );
+  });
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
 
+      {/* Back Button */}
       <button
         onClick={() => router.back()}
         className="mb-4 px-4 py-2 bg-black text-white rounded hover:opacity-80"
@@ -65,6 +85,7 @@ export default function PaymentsPage() {
         Payments Dashboard
       </h1>
 
+      {/* Summary */}
       <SummaryCards
         totalAmount={totalAmount}
         totalPayments={payments.length}
@@ -72,6 +93,7 @@ export default function PaymentsPage() {
         totalUnits={uniqueUnits}
       />
 
+      {/* Add Payment */}
       <PaymentForm
         projects={projects}
         units={units}
@@ -79,8 +101,19 @@ export default function PaymentsPage() {
         onSubmit={handleAddPayment}
       />
 
+      {/* 🔍 SEARCH BOX */}
+      <div className="bg-white p-4 rounded-xl border shadow-sm mb-4">
+        <input
+          placeholder="Search by Member, Number, Unit or Project..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border rounded px-3 py-2 w-full text-black placeholder-gray-700"
+        />
+      </div>
+
+      {/* Payments Table */}
       <PaymentsTable
-        payments={payments}
+        payments={filteredPayments}
         onDelete={deletePaymentById}
         onEdit={updatePayment}
       />
