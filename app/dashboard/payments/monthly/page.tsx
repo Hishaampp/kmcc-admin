@@ -98,17 +98,16 @@ export default function MonthlyPaymentsPage() {
 
     let matchesYear = true;
 
-    if (year) {
-      const derivedYear = extractYear(p);
+   if (year) {
+  const derivedYear = extractYear(p);
 
-      if (derivedYear) {
-        matchesYear = String(derivedYear) === String(year);
-      } else {
-        // IMPORTANT FIX
-        // If year is unknown, DO NOT block the record
-        matchesYear = true;
-      }
-    }
+  // STRICT — no year = NOT counted
+  if (!derivedYear) return false;
+
+  matchesYear = String(derivedYear) === String(year);
+}
+
+
 
     return matchesMonth && matchesYear && matchesProject && matchesUnit;
   });

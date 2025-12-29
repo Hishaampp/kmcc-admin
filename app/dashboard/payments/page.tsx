@@ -31,6 +31,9 @@ export default function PaymentsPage() {
     );
   }
 
+  // ======================
+  // SUMMARY COUNTS
+  // ======================
   const totalAmount = payments.reduce(
     (sum, p) => sum + Number(p.amount || 0),
     0
@@ -39,6 +42,9 @@ export default function PaymentsPage() {
   const uniqueMembers = new Set(payments.map((p) => p.memberId)).size;
   const uniqueUnits = new Set(payments.map((p) => p.unitId)).size;
 
+  // ======================
+  // ADD PAYMENT
+  // ======================
   const handleAddPayment = async (data: any) => {
     const project = projects.find((p) => p.id === data.projectId);
     const unit = units.find((u) => u.id === data.unitId);
@@ -58,15 +64,24 @@ export default function PaymentsPage() {
     });
   };
 
-  // 🔍 FILTER LOGIC
+  // ======================
+  // 🔍 SUPER SEARCH LOGIC
+  // ======================
   const filteredPayments = payments.filter((p) => {
-    const keyword = search.toLowerCase();
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return true; // if no search → show all
 
-    return (
-      p.memberName?.toLowerCase().includes(keyword) ||
-      p.memberNumber?.toLowerCase().includes(keyword) ||
-      p.unitName?.toLowerCase().includes(keyword) ||
-      p.projectName?.toLowerCase().includes(keyword)
+    const fields = [
+      p.memberName,
+      p.memberNumber,
+      p.unitName,
+      p.projectName,
+      p.month,
+      p.year ? String(p.year) : "",
+    ];
+
+    return fields.some((field) =>
+      (field || "").toString().toLowerCase().includes(keyword)
     );
   });
 
@@ -104,7 +119,7 @@ export default function PaymentsPage() {
       {/* 🔍 SEARCH BOX */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-4">
         <input
-          placeholder="Search by Member, Number, Unit or Project..."
+          placeholder="Search Member / Number / Unit / Project / Month / Year"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 w-full text-black placeholder-gray-700"
