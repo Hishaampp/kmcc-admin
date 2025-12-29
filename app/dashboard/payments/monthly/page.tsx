@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 
-export default function MonthlyPaymentsPage() {
+export default function MonthlyReportsPage() {
   const router = useRouter();
 
   const [projects, setProjects] = useState<any[]>([]);
@@ -17,6 +17,7 @@ export default function MonthlyPaymentsPage() {
   const [unitId, setUnitId] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
+  const [reportType, setReportType] = useState("allUnits");
 
   const MONTHS = [
     "January","February","March","April","May","June",
@@ -24,10 +25,10 @@ export default function MonthlyPaymentsPage() {
   ];
 
   const currentYear = new Date().getFullYear();
-  const YEARS = Array.from({ length: currentYear - 2023 + 3 }, (_, i) => 2023 + i);
+  const YEARS = Array.from({ length: 4 }, (_, i) => 2023 + i);
 
   // ======================
-  // FETCH ALL DATA
+  // LOAD DATA
   // ======================
   useEffect(() => {
     const load = async () => {
@@ -48,7 +49,7 @@ export default function MonthlyPaymentsPage() {
   }, []);
 
   // ======================
-  // MONTH -> INDEX
+  // UTIL HELPERS
   // ======================
   const getMonthIndex = (value: string) => {
     if (!value) return null;
@@ -62,69 +63,62 @@ export default function MonthlyPaymentsPage() {
     for (let i = 0; i < months.length; i++) {
       if (clean.includes(months[i])) return i;
     }
+    return null;
+  };
 
-    const num = parseInt(clean);
-    if (!isNaN(num) && num >= 1 && num <= 12) return num - 1;
-
+  const extractYear = (p: any) => {
+    if (p.year) return Number(p.year);
     return null;
   };
 
   const selectedMonthIndex = getMonthIndex(month);
 
   // ======================
-  // YEAR EXTRACTION
-  // ======================
-  const extractYear = (p: any) => {
-    if (p.year) return Number(p.year);
-
-    if (p.createdAt?.toDate) {
-      return p.createdAt.toDate().getFullYear();
-    }
-
-    return null; // year unknown (old records)
-  };
-
-  // ======================
-  // FILTER PAYMENTS  ✅ FINAL
+  // FILTER
   // ======================
   const filteredPayments = payments.filter(p => {
-    if (!month || !projectId) return false;
+    if (!month || !year) return false;
 
-    const paymentMonthIndex = getMonthIndex(p.month);
-    const matchesMonth = paymentMonthIndex === selectedMonthIndex;
+    const matchesMonth =
+      getMonthIndex(p.month) === selectedMonthIndex;
 
-    const matchesProject = p.projectId === projectId;
+    const derivedYear = extractYear(p);
+    if (!derivedYear) return false; // strict honest data
+
+    const matchesYear = String(derivedYear) === String(year);
+
+    const matchesProject = projectId ? p.projectId === projectId : true;
     const matchesUnit = unitId ? p.unitId === unitId : true;
-
-    let matchesYear = true;
-
-   if (year) {
-  const derivedYear = extractYear(p);
-
-  // STRICT — no year = NOT counted
-  if (!derivedYear) return false;
-
-  matchesYear = String(derivedYear) === String(year);
-}
-
-
 
     return matchesMonth && matchesYear && matchesProject && matchesUnit;
   });
 
   // ======================
-  // PAID / PENDING
+  // GROUP LOGIC
   // ======================
-  const paidMemberIds = new Set(filteredPayments.map(p => p.memberId));
+  const groupBy = (key: "unitId" | "memberId" | "projectId") => {
+    const map: any = {};
 
-  const relevantMembers = members.filter(m => {
-    if (!projectId) return false;
-    if (m.status === "quit") return false;
-    if (unitId && m.unitId !== unitId) return false;
-    return true;
-  });
+    filteredPayments.forEach(p => {
+      const id = p[key];
+      if (!map[id]) {
+        map[id] = {
+          total: 0,
+          name:
+            key === "unitId" ? p.unitName :
+            key === "memberId" ? p.memberName :
+            p.projectName,
+        };
+      }
+      map[id].total += Number(p.amount || 0);
+    });
 
-  const pendingMembers = relevantMembers.filter(m => !paidMemberIds.has(m.id));
+    return Object.values(map).sort((a: any, b: any) => b.total - a.total);
+  };
+
+  const allUnitsReport = groupBy("unitId");
+  const perUnitMembers = groupBy("memberId");
+  const perProject = groupBy("projectId");
 
   const totalAmount = filteredPayments.reduce(
     (sum, p) => sum + Number(p.amount || 0),
@@ -132,7 +126,7 @@ export default function MonthlyPaymentsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 p-8 text-gray-900">
 
       {/* Back */}
       <button
@@ -142,100 +136,116 @@ export default function MonthlyPaymentsPage() {
         ← Back
       </button>
 
-      <h1 className="text-2xl font-bold mb-6 text-gray-900">
-        Monthly Payments Report
+      <h1 className="text-2xl font-bold mb-5">
+        Monthly Reports
       </h1>
 
-      {/* Filters */}
+      {/* ================= FILTERS ================= */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
 
-        <select value={projectId} onChange={e => setProjectId(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
-          <option value="">Select Project</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select value={reportType} onChange={e => setReportType(e.target.value)}
+          className="border rounded px-3 py-2">
+          <option value="allUnits">Monthly — All Units</option>
+          <option value="perUnit">Monthly — Per Unit</option>
+          <option value="perMember">Monthly — Per Members</option>
+          <option value="perProject">Monthly — Per Projects</option>
         </select>
 
-        <select value={unitId} onChange={e => setUnitId(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
+        <select value={projectId} onChange={e => setProjectId(e.target.value)}
+          className="border rounded px-3 py-2">
+          <option value="">All Projects</option>
+          {projects.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+
+        <select value={unitId} onChange={e => setUnitId(e.target.value)}
+          disabled={reportType !== "perUnit" && reportType !== "perMember"}
+          className="border rounded px-3 py-2">
           <option value="">All Units</option>
-          {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          {units.map(u => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
         </select>
 
-        <select value={month} onChange={e => setMonth(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
+        <select value={month} onChange={e => setMonth(e.target.value)}
+          className="border rounded px-3 py-2">
           <option value="">Select Month</option>
           {MONTHS.map(m => <option key={m}>{m}</option>)}
         </select>
 
-        <select value={year} onChange={e => setYear(e.target.value)} className="border rounded px-3 py-2 text-gray-900">
+        <select value={year} onChange={e => setYear(e.target.value)}
+          className="border rounded px-3 py-2">
           <option value="">Select Year</option>
           {YEARS.map(y => <option key={y}>{y}</option>)}
         </select>
 
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-
+      {/* ================= SUMMARY ================= */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Total Collected</p>
+          <p className="text-sm">Total Collected</p>
           <h2 className="text-2xl font-bold text-green-700">₹{totalAmount}</h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Payments Recorded</p>
-          <h2 className="text-2xl font-bold text-gray-900">{filteredPayments.length}</h2>
+          <p className="text-sm">Payments Count</p>
+          <h2 className="text-2xl font-bold">{filteredPayments.length}</h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Members Paid</p>
-          <h2 className="text-2xl font-bold text-green-700">{paidMemberIds.size}</h2>
+          <p className="text-sm">Report Type</p>
+          <h2 className="text-xl font-semibold capitalize">{reportType}</h2>
         </div>
-
-        <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Pending Members</p>
-          <h2 className="text-2xl font-bold text-red-700">{pendingMembers.length}</h2>
-        </div>
-
       </div>
 
-      {/* Paid Members */}
-      <div className="bg-white p-4 rounded-xl border shadow-sm mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Paid Members</h2>
+      {/* ================= REPORT RENDER ================= */}
 
-        {filteredPayments.length === 0 && (
-          <p className="text-gray-600">No payments found.</p>
-        )}
+      {/* ALL UNITS */}
+      {reportType === "allUnits" && (
+        <Section title="Unit wise Collection" data={allUnitsReport} />
+      )}
 
-        <ul className="space-y-2">
-          {filteredPayments.map(p => (
-            <li key={p.id} className="p-3 border rounded bg-gray-50 flex justify-between">
-              <span className="font-medium text-gray-900">
-                {p.memberName} ({p.memberNumber})
-              </span>
-              <span className="text-green-700 font-bold">₹{p.amount}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* PER UNIT MEMBERS */}
+      {reportType === "perUnit" && (
+        <Section title="Members in Selected Unit" data={perUnitMembers} />
+      )}
 
-      {/* Pending Members */}
-      <div className="bg-white p-4 rounded-xl border shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Pending Members</h2>
+      {/* PER MEMBER */}
+      {reportType === "perMember" && (
+        <Section title="Member wise Collection" data={perUnitMembers} />
+      )}
 
-        {pendingMembers.length === 0 && (
-          <p className="text-gray-600">No pending members.</p>
-        )}
+      {/* PER PROJECT */}
+      {reportType === "perProject" && (
+        <Section title="Project wise Collection" data={perProject} />
+      )}
 
-        <ul className="space-y-2">
-          {pendingMembers.map(m => (
-            <li key={m.id} className="p-3 border rounded bg-red-50 flex justify-between">
-              <span className="font-medium text-gray-900">
-                {m.name} ({m.number})
-              </span>
-              <span className="text-red-700 font-bold">Pending</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+    </div>
+  );
+}
 
+function Section({ title, data }: any) {
+  return (
+    <div className="bg-white p-4 rounded-xl border shadow-sm">
+      <h2 className="text-lg font-semibold mb-3">{title}</h2>
+
+      {data.length === 0 && (
+        <p className="text-gray-600">No records found.</p>
+      )}
+
+      <ul className="space-y-2">
+        {data.map((i: any, index: number) => (
+          <li
+            key={index}
+            className="p-3 border rounded bg-gray-50 flex justify-between"
+          >
+            <span className="font-medium">{i.name}</span>
+            <span className="font-bold text-green-700">₹{i.total}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
