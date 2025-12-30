@@ -162,7 +162,7 @@ export default function Dashboard() {
             </p>
           </Link>
 
-          {/* Monthly Balance Sheet */}
+          {/* Monthly Balance */}
           <Link
             href="/dashboard/reports/monthly-balance"
             className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
@@ -175,10 +175,22 @@ export default function Dashboard() {
             </p>
           </Link>
 
+          {/* ⭐ NEW — FULL PROJECT SUMMARY */}
+          <Link
+            href="/dashboard/reports/project-summary"
+            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Project Full Summary
+            </h3>
+            <p className="text-gray-700 mt-1">
+              View total of project → all units, lifetime totals.
+            </p>
+          </Link>
+
         </div>
 
       </div>
     </div>
   );
 }
-  
