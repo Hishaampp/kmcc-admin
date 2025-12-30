@@ -24,9 +24,12 @@ export default function MonthlyReportsPage() {
     "July","August","September","October","November","December"
   ];
 
+  const currentYear = new Date().getFullYear();
   const YEARS = Array.from({ length: 4 }, (_, i) => 2023 + i);
 
+  // ======================
   // LOAD DATA
+  // ======================
   useEffect(() => {
     const load = async () => {
       const p = await getDocs(collection(db, "projects"));
@@ -45,7 +48,9 @@ export default function MonthlyReportsPage() {
     load();
   }, []);
 
-  // ===== Helper =====
+  // ======================
+  // UTIL HELPERS
+  // ======================
   const getMonthIndex = (value: string) => {
     if (!value) return null;
     const clean = value.trim().toLowerCase();
@@ -68,24 +73,17 @@ export default function MonthlyReportsPage() {
 
   const selectedMonthIndex = getMonthIndex(month);
 
-  // =======================
-  // IMPORTANT FIX HERE 🔥
-  // =======================
-  const activeMembers = members
-    .filter(m => m.status !== "quit")
-    .map(m => m.id);
-
-  // FILTER PAYMENTS
+  // ======================
+  // FILTER
+  // ======================
   const filteredPayments = payments.filter(p => {
     if (!month || !year) return false;
 
-    // must belong to ACTIVE MEMBER
-    if (!activeMembers.includes(p.memberId)) return false;
-
-    const matchesMonth = getMonthIndex(p.month) === selectedMonthIndex;
+    const matchesMonth =
+      getMonthIndex(p.month) === selectedMonthIndex;
 
     const derivedYear = extractYear(p);
-    if (!derivedYear) return false;
+    if (!derivedYear) return false; // strict honest data
 
     const matchesYear = String(derivedYear) === String(year);
 
@@ -95,7 +93,9 @@ export default function MonthlyReportsPage() {
     return matchesMonth && matchesYear && matchesProject && matchesUnit;
   });
 
-  // GROUP
+  // ======================
+  // GROUP LOGIC
+  // ======================
   const groupBy = (key: "unitId" | "memberId" | "projectId") => {
     const map: any = {};
 
@@ -128,6 +128,7 @@ export default function MonthlyReportsPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-8 text-gray-900">
 
+      {/* Back */}
       <button
         onClick={() => router.back()}
         className="mb-4 px-4 py-2 bg-black text-white rounded hover:opacity-80"
@@ -139,7 +140,7 @@ export default function MonthlyReportsPage() {
         Monthly Reports
       </h1>
 
-      {/* Filters */}
+      {/* ================= FILTERS ================= */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
 
         <select value={reportType} onChange={e => setReportType(e.target.value)}
@@ -181,8 +182,9 @@ export default function MonthlyReportsPage() {
 
       </div>
 
-      {/* Summary */}
+      {/* ================= SUMMARY ================= */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
         <div className="bg-white p-5 rounded-xl border shadow">
           <p className="text-sm">Total Collected</p>
           <h2 className="text-2xl font-bold text-green-700">₹{totalAmount}</h2>
@@ -197,20 +199,27 @@ export default function MonthlyReportsPage() {
           <p className="text-sm">Report Type</p>
           <h2 className="text-xl font-semibold capitalize">{reportType}</h2>
         </div>
+
       </div>
 
+      {/* ================= REPORT RENDER ================= */}
+
+      {/* ALL UNITS */}
       {reportType === "allUnits" && (
         <Section title="Unit wise Collection" data={allUnitsReport} />
       )}
 
+      {/* PER UNIT MEMBERS */}
       {reportType === "perUnit" && (
         <Section title="Members in Selected Unit" data={perUnitMembers} />
       )}
 
+      {/* PER MEMBER */}
       {reportType === "perMember" && (
         <Section title="Member wise Collection" data={perUnitMembers} />
       )}
 
+      {/* PER PROJECT */}
       {reportType === "perProject" && (
         <Section title="Project wise Collection" data={perProject} />
       )}
