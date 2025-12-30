@@ -19,26 +19,48 @@ export default function UnitsPage() {
   const [unitName, setUnitName] = useState("");
   const [units, setUnits] = useState<any[]>([]);
 
-  // Edit State
   const [showEditBox, setShowEditBox] = useState(false);
   const [editUnitId, setEditUnitId] = useState("");
   const [editUnitName, setEditUnitName] = useState("");
 
-  // Delete State
   const [showDeleteBox, setShowDeleteBox] = useState(false);
   const [deleteUnitId, setDeleteUnitId] = useState("");
 
-  // Fetch Units
+  // ======================
+  // SMART SORT FUNCTION
+  // ======================
+  const sortUnits = (list: any[]) => {
+    return list.sort((a: any, b: any) => {
+      const getNumber = (name: string) => {
+        const match = name.match(/^\d+/);
+        return match ? Number(match[0]) : Infinity; // non-number names go last
+      };
+
+      const numA = getNumber(a.name);
+      const numB = getNumber(b.name);
+
+      if (numA !== numB) return numA - numB;
+
+      return a.name.localeCompare(b.name);
+    });
+  };
+
+  // ======================
+  // FETCH UNITS
+  // ======================
   const fetchUnits = async () => {
     const snap = await getDocs(collection(db, "units"));
-    setUnits(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    setUnits(sortUnits(data));
   };
 
   useEffect(() => {
     fetchUnits();
   }, []);
 
-  // Add Unit
+  // ======================
+  // ADD UNIT
+  // ======================
   const addUnit = async () => {
     if (!unitName.trim()) return;
 
@@ -51,14 +73,15 @@ export default function UnitsPage() {
     fetchUnits();
   };
 
-  // Open Edit
+  // ======================
+  // EDIT UNIT
+  // ======================
   const openEdit = (unit: any) => {
     setEditUnitId(unit.id);
     setEditUnitName(unit.name);
     setShowEditBox(true);
   };
 
-  // Save Edit
   const saveEdit = async () => {
     if (!editUnitName.trim()) return;
 
@@ -70,7 +93,9 @@ export default function UnitsPage() {
     fetchUnits();
   };
 
-  // Delete Unit
+  // ======================
+  // DELETE UNIT
+  // ======================
   const deleteUnit = async () => {
     await deleteDoc(doc(db, "units", deleteUnitId));
     setShowDeleteBox(false);
@@ -80,7 +105,6 @@ export default function UnitsPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-8">
 
-      {/* BACK BUTTON */}
       <button
         onClick={() => router.back()}
         className="mb-4 px-4 py-2 bg-black text-white rounded-lg hover:opacity-80"
@@ -92,12 +116,12 @@ export default function UnitsPage() {
         Manage Units
       </h1>
 
-      {/* Add Unit */}
+      {/* ADD */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 flex gap-3">
         <input
           value={unitName}
           onChange={(e) => setUnitName(e.target.value)}
-          placeholder="Enter Unit Name"
+          placeholder="Enter Unit Name (ex: 02-Cherukara)"
           className="border rounded px-3 py-2 w-full text-black placeholder-gray-800"
         />
 
@@ -109,7 +133,7 @@ export default function UnitsPage() {
         </button>
       </div>
 
-      {/* Units List */}
+      {/* LIST */}
       <div className="bg-white rounded-xl border shadow-sm p-4">
         <h2 className="text-lg font-semibold mb-3 text-gray-800">
           All Units
@@ -126,9 +150,7 @@ export default function UnitsPage() {
               className="p-3 border rounded-lg bg-gray-50 flex justify-between items-center"
             >
               <div>
-                <p className="font-medium text-gray-900">
-                  {unit.name}
-                </p>
+                <p className="font-medium text-gray-900">{unit.name}</p>
                 <p className="text-sm text-gray-600">
                   {unit.createdAt?.toDate
                     ? unit.createdAt.toDate().toLocaleDateString()

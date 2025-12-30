@@ -105,7 +105,7 @@ export default function Dashboard() {
 
         {/* Payments Analytics Section */}
         <h2 className="text-2xl font-bold text-gray-800 mt-10 mb-4">
-          Payments Analytics 📊
+          Financial Reports 📊
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -119,11 +119,11 @@ export default function Dashboard() {
               Monthly Report
             </h3>
             <p className="text-gray-700 mt-1">
-              View month + year based collected & pending.
+              View monthly collection and pending details.
             </p>
           </Link>
 
-          {/* Yearly Dashboard - (Coming Soon Placeholder) */}
+          {/* Yearly Dashboard */}
           <Link
             href="/dashboard/payments/yearly"
             className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
@@ -132,7 +132,7 @@ export default function Dashboard() {
               Yearly Overview
             </h3>
             <p className="text-gray-700 mt-1">
-              Track yearly progress & totals.
+              Track yearly performance and totals.
             </p>
           </Link>
 
@@ -145,12 +145,40 @@ export default function Dashboard() {
               Pending Payments
             </h3>
             <p className="text-gray-700 mt-1">
-              See who didn’t pay and follow up.
+              View unpaid members and follow up.
             </p>
           </Link>
+
+          {/* Add Expenses */}
+          <Link
+            href="/dashboard/payments/expenses"
+            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Add Expenses
+            </h3>
+            <p className="text-gray-700 mt-1">
+              Record expenses for projects or units.
+            </p>
+          </Link>
+
+          {/* Monthly Balance Sheet */}
+          <Link
+            href="/dashboard/reports/monthly-balance"
+            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Monthly Balance Sheet
+            </h3>
+            <p className="text-gray-700 mt-1">
+              View Income - Expense summary and balance.
+            </p>
+          </Link>
+
         </div>
 
       </div>
     </div>
   );
 }
+  
