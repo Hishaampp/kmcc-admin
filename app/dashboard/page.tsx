@@ -82,7 +82,7 @@ export default function Dashboard() {
             className="block p-6 bg-white rounded-xl border shadow-sm hover:shadow-md hover:bg-gray-50 transition"
           >
             <h3 className="text-lg font-semibold text-gray-900">
-              Record Payments
+              Share Holder Payments
             </h3>
             <p className="text-gray-700 mt-1">
               Enter member payments and view history records.
