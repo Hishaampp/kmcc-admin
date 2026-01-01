@@ -5,6 +5,10 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 
+// INDIAN RUPEE FORMATTER
+const formatINR = (num: number) =>
+  new Intl.NumberFormat("en-IN").format(num);
+
 export default function MonthlyReportsPage() {
   const router = useRouter();
 
@@ -24,7 +28,6 @@ export default function MonthlyReportsPage() {
     "July","August","September","October","November","December"
   ];
 
-  const currentYear = new Date().getFullYear();
   const YEARS = Array.from({ length: 4 }, (_, i) => 2023 + i);
 
   // ======================
@@ -83,7 +86,7 @@ export default function MonthlyReportsPage() {
       getMonthIndex(p.month) === selectedMonthIndex;
 
     const derivedYear = extractYear(p);
-    if (!derivedYear) return false; // strict honest data
+    if (!derivedYear) return false;
 
     const matchesYear = String(derivedYear) === String(year);
 
@@ -187,7 +190,9 @@ export default function MonthlyReportsPage() {
 
         <div className="bg-white p-5 rounded-xl border shadow">
           <p className="text-sm">Total Collected</p>
-          <h2 className="text-2xl font-bold text-green-700">₹{totalAmount}</h2>
+          <h2 className="text-2xl font-bold text-green-700">
+            ₹{formatINR(totalAmount)}
+          </h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow">
@@ -203,23 +208,18 @@ export default function MonthlyReportsPage() {
       </div>
 
       {/* ================= REPORT RENDER ================= */}
-
-      {/* ALL UNITS */}
       {reportType === "allUnits" && (
         <Section title="Unit wise Collection" data={allUnitsReport} />
       )}
 
-      {/* PER UNIT MEMBERS */}
       {reportType === "perUnit" && (
         <Section title="Members in Selected Unit" data={perUnitMembers} />
       )}
 
-      {/* PER MEMBER */}
       {reportType === "perMember" && (
         <Section title="Member wise Collection" data={perUnitMembers} />
       )}
 
-      {/* PER PROJECT */}
       {reportType === "perProject" && (
         <Section title="Project wise Collection" data={perProject} />
       )}
@@ -244,7 +244,9 @@ function Section({ title, data }: any) {
             className="p-3 border rounded bg-gray-50 flex justify-between"
           >
             <span className="font-medium">{i.name}</span>
-            <span className="font-bold text-green-700">₹{i.total}</span>
+            <span className="font-bold text-green-700">
+              ₹{new Intl.NumberFormat("en-IN").format(i.total)}
+            </span>
           </li>
         ))}
       </ul>

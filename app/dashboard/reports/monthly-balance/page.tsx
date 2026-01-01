@@ -2,7 +2,7 @@
 
 import useExpenses from "@/app/dashboard/payments/hooks/use-expenses";
 import usePayments from "@/app/dashboard/payments/hooks/use-payments";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export default function MonthlyBalanceReport() {
   const { projects, units, payments } = usePayments();
@@ -20,6 +20,7 @@ export default function MonthlyBalanceReport() {
 
   const YEARS = Array.from({ length: 6 }, (_, i) => 2023 + i);
 
+  // ================= FILTER LOGIC =================
   const filterMatch = (item:any) => {
     if (projectId && item.projectId !== projectId) return false;
     if (unitId && item.unitId !== unitId) return false;
@@ -31,6 +32,31 @@ export default function MonthlyBalanceReport() {
   const income = payments.filter(filterMatch);
   const expense = expenses.filter(filterMatch);
 
+  // ================= FORMAT MONEY =================
+  const f = (n:number) =>
+    new Intl.NumberFormat("en-IN").format(Number(n || 0));
+
+  // ================= UNIT WISE GROUP =================
+  const unitWiseIncome = useMemo(() => {
+    const map:any = {};
+
+    income.forEach((p:any)=>{
+      if(!p.unitId) return;
+
+      if(!map[p.unitId]){
+        map[p.unitId] = {
+          unitName: p.unitName || "Unknown Unit",
+          total: 0
+        };
+      }
+
+      map[p.unitId].total += Number(p.amount || 0);
+    });
+
+    return Object.values(map).sort((a:any,b:any)=>b.total-a.total);
+  }, [income]);
+
+  // ================= TOTALS =================
   const totalIncome = income.reduce((s,p)=>s+Number(p.amount||0),0);
   const totalExpense = expense.reduce((s,e)=>s+Number(e.amount||0),0);
   const balance = totalIncome - totalExpense;
@@ -38,7 +64,6 @@ export default function MonthlyBalanceReport() {
   return (
     <div className="min-h-screen bg-gray-100 p-8 text-black">
 
-      {/* Title */}
       <h1 className="text-3xl font-bold mb-1">
         Monthly Balance Sheet
       </h1>
@@ -87,46 +112,48 @@ export default function MonthlyBalanceReport() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
 
         <div className="bg-white p-6 rounded-xl border shadow">
           <p className="text-sm text-gray-600">Total Income</p>
           <h2 className="text-3xl font-bold text-green-700 mt-1">
-            ₹{totalIncome}
+            ₹{f(totalIncome)}
           </h2>
         </div>
 
         <div className="bg-white p-6 rounded-xl border shadow">
           <p className="text-sm text-gray-600">Total Expense</p>
           <h2 className="text-3xl font-bold text-red-700 mt-1">
-            ₹{totalExpense}
+            ₹{f(totalExpense)}
           </h2>
         </div>
 
         <div className="bg-white p-6 rounded-xl border shadow">
           <p className="text-sm text-gray-600">Net Balance</p>
           <h2 className={`text-3xl font-bold mt-1 ${balance >= 0 ? "text-green-700":"text-red-700"}`}>
-            ₹{balance}
+            ₹{f(balance)}
           </h2>
         </div>
 
       </div>
 
-      {/* Income Table */}
+      {/* ================= UNIT WISE INCOME ================= */}
       <div className="bg-white p-5 rounded-xl border shadow mb-6">
-        <h2 className="text-lg font-semibold mb-3">Income Records</h2>
+        <h2 className="text-lg font-semibold mb-3">Unit Wise Income</h2>
 
-        {income.length === 0 && (
-          <p className="text-gray-700">No income records found.</p>
+        {unitWiseIncome.length === 0 && (
+          <p className="text-gray-700">No records found.</p>
         )}
 
-        {income.length > 0 && (
+        {unitWiseIncome.length > 0 && (
           <ul className="divide-y">
-            {income.map((p:any)=>(
-              <li key={p.id} className="py-2 flex justify-between">
-                <span>{p.memberName} — {p.unitName}</span>
-                <span className="font-bold text-green-700">₹{p.amount}</span>
+            {unitWiseIncome.map((u:any, index:number)=>(
+              <li key={index} className="py-2 flex justify-between">
+                <span>{u.unitName}</span>
+                <span className="font-bold text-green-700">
+                  ₹{f(u.total)}
+                </span>
               </li>
             ))}
           </ul>
@@ -146,7 +173,9 @@ export default function MonthlyBalanceReport() {
             {expense.map((e:any)=>(
               <li key={e.id} className="py-2 flex justify-between">
                 <span>{e.title} — {e.unitName || "All Units"}</span>
-                <span className="font-bold text-red-700">₹{e.amount}</span>
+                <span className="font-bold text-red-700">
+                  ₹{f(e.amount)}
+                </span>
               </li>
             ))}
           </ul>

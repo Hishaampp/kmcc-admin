@@ -89,6 +89,19 @@ export default function Dashboard() {
             </p>
           </Link>
 
+          <Link
+  href="/dashboard/payments/other-project-payments"
+  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+>
+  <h3 className="text-lg font-semibold text-gray-900">
+    Other Project Payments
+  </h3>
+  <p className="text-gray-700 mt-1">
+    Add payments directly under projects (without units / members)
+  </p>
+</Link>
+
+
           {/* Quit Members */}
           <Link
             href="/dashboard/quit-members"
@@ -174,6 +187,19 @@ export default function Dashboard() {
               View Income - Expense summary and balance.
             </p>
           </Link>
+
+          <Link
+  href="/dashboard/payments/interest-income"
+  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+>
+  <h3 className="text-lg font-semibold text-gray-900">
+    Interest Income
+  </h3>
+  <p className="text-gray-700 mt-1">
+    Add and track interest / bank credit incomes
+  </p>
+</Link>
+
 
           {/* ⭐ NEW — FULL PROJECT SUMMARY */}
           <Link

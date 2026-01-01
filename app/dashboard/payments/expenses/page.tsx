@@ -11,10 +11,14 @@ const MONTHS = [
   "July","August","September","October","November","December"
 ];
 
+// INDIAN RUPEE FORMATTER
+const formatINR = (num:number) =>
+  new Intl.NumberFormat("en-IN").format(num);
+
 export default function ExpensesPage() {
   const router = useRouter();
 
-  const { loading, projects, units } = usePayments();
+  const { loading, projects } = usePayments();
   const { addExpense, expenses } = useExpenses();
 
   const [search, setSearch] = useState("");
@@ -27,9 +31,7 @@ export default function ExpensesPage() {
     );
   }
 
-  // =========================
-  // SORT LATEST → OLDEST
-  // =========================
+  // SORT (Latest First)
   const sortedExpenses = [...expenses].sort((a:any,b:any)=>{
 
     const yearA = Number(a.year) || 0;
@@ -45,9 +47,7 @@ export default function ExpensesPage() {
     return timeB - timeA;
   });
 
-  // =========================
-  // SEARCH FILTER
-  // =========================
+  // SEARCH
   const filteredExpenses = sortedExpenses.filter((e:any)=>{
     if(!search.trim()) return true;
 
@@ -56,7 +56,6 @@ export default function ExpensesPage() {
     const fields = [
       e.title,
       e.projectName,
-      e.unitName,
       e.month,
       e.year ? String(e.year) : "",
       e.amount ? String(e.amount) : ""
@@ -85,21 +84,20 @@ export default function ExpensesPage() {
       {/* ADD FORM */}
       <ExpenseForm
         projects={projects}
-        units={units}
         onSubmit={addExpense}
       />
 
-      {/* ===================== SEARCH ===================== */}
+      {/* SEARCH */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-4">
         <input
-          placeholder="Search by Title / Project / Unit / Month / Year / Amount"
+          placeholder="Search by Title / Project / Month / Year / Amount"
           value={search}
           onChange={(e)=>setSearch(e.target.value)}
           className="border rounded px-3 py-2 w-full text-black placeholder-gray-700"
         />
       </div>
 
-      {/* ===================== EXPENSE LIST ===================== */}
+      {/* LIST */}
       <div className="bg-white rounded-xl border shadow-sm p-4">
         <h2 className="text-lg font-semibold mb-3">
           Expense Records
@@ -121,14 +119,12 @@ export default function ExpensesPage() {
                 </p>
 
                 <p className="text-sm text-gray-700">
-                  {e.projectName || "No Project"} —
-                  {e.unitName ? ` ${e.unitName} —` : ""} 
-                  {e.month} {e.year}
+                  {e.projectName || "No Project"} — {e.month} {e.year}
                 </p>
               </div>
 
               <span className="font-bold text-red-700">
-                ₹{e.amount}
+                ₹{formatINR(Number(e.amount || 0))}
               </span>
             </li>
           ))}

@@ -31,7 +31,6 @@ export default function PaymentsPage() {
     );
   }
 
-  // SUMMARY
   const totalAmount = payments.reduce(
     (sum, p) => sum + Number(p.amount || 0),
     0
@@ -40,7 +39,6 @@ export default function PaymentsPage() {
   const uniqueMembers = new Set(payments.map((p) => p.memberId)).size;
   const uniqueUnits = new Set(payments.map((p) => p.unitId)).size;
 
-  // ADD PAYMENT
   const handleAddPayment = async (data: any) => {
     const project = projects.find((p) => p.id === data.projectId);
     const unit = units.find((u) => u.id === data.unitId);
@@ -60,7 +58,6 @@ export default function PaymentsPage() {
     });
   };
 
-  // SEARCH + SORT
   const monthIndex = (m?: string) => {
     if (!m) return -1;
     const months = [

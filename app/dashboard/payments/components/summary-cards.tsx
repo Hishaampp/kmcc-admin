@@ -13,6 +13,11 @@ export default function SummaryCards({
   totalMembers,
   totalUnits
 }: Props) {
+
+  // Indian Rupee formatting
+  const formatINR = (value: number) =>
+    new Intl.NumberFormat("en-IN").format(value);
+
   const card = (title: string, value: string | number) => (
     <div className="bg-white border rounded-xl shadow-sm p-4">
       <p className="text-sm text-gray-600">{title}</p>
@@ -22,10 +27,10 @@ export default function SummaryCards({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      {card("Total Amount Collected", `₹${totalAmount}`)}
-      {card("Total Payments Recorded", totalPayments)}
-      {card("Members Participated", totalMembers)}
-      {card("Units Participated", totalUnits)}
+      {card("Total Amount Collected", `₹${formatINR(totalAmount)}`)}
+      {card("Total Payments Recorded", formatINR(totalPayments))}
+      {card("Members Participated", formatINR(totalMembers))}
+      {card("Units Participated", formatINR(totalUnits))}
     </div>
   );
 }
