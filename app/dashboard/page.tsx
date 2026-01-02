@@ -124,7 +124,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
           {/* Monthly Dashboard */}
-          <Link
+          {/* <Link
             href="/dashboard/payments/monthly"
             className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
           >
@@ -134,7 +134,7 @@ export default function Dashboard() {
             <p className="text-gray-700 mt-1">
               View monthly collection and pending details.
             </p>
-          </Link>
+          </Link> */}
 
           {/* Yearly Dashboard */}
           <Link

@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
+import useExpenses from "@/app/dashboard/payments/hooks/use-expenses";
 
 export default function YearlyPaymentsPage() {
   const router = useRouter();
+  const { expenses } = useExpenses();
 
   const [projects, setProjects] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
 
   const [projectId, setProjectId] = useState("");
@@ -18,62 +19,69 @@ export default function YearlyPaymentsPage() {
   const [year, setYear] = useState("");
 
   const currentYear = new Date().getFullYear();
-  const YEARS = Array.from({ length: currentYear - 2023 + 3 }, (_, i) => 2023 + i);
+  const YEARS = Array.from(
+    { length: currentYear - 2023 + 3 },
+    (_, i) => 2023 + i
+  );
 
-  const fetch = async () => {
-    const p = await getDocs(collection(db, "projects"));
-    setProjects(p.docs.map(d => ({ id: d.id, ...d.data() })));
-
-    const u = await getDocs(collection(db, "units"));
-    setUnits(u.docs.map(d => ({ id: d.id, ...d.data() })));
-
-    const m = await getDocs(collection(db, "members"));
-    setMembers(m.docs.map(d => ({ id: d.id, ...d.data() })));
-
-    const pay = await getDocs(collection(db, "payments"));
-    setPayments(pay.docs.map(d => ({ id: d.id, ...d.data() })));
-  };
-
+  // ================= LOAD DATA =================
   useEffect(() => {
-    fetch();
+    const load = async () => {
+      const p = await getDocs(collection(db, "projects"));
+      setProjects(p.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      const u = await getDocs(collection(db, "units"));
+      setUnits(u.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      const pay = await getDocs(collection(db, "payments"));
+      setPayments(pay.docs.map(d => ({ id: d.id, ...d.data() })));
+    };
+
+    load();
   }, []);
 
-  const filteredPayments = payments.filter(p => {
-    if (!year || !projectId) return false;
+  // ================= FORMAT INR =================
+  const formatINR = (n: number) =>
+    new Intl.NumberFormat("en-IN").format(Number(n || 0));
 
-    const payYear =
-      p.year
-        ? Number(p.year)
-        : p.createdAt?.toDate
-        ? p.createdAt.toDate().getFullYear()
+  // ================= FILTER =================
+  const filterMatch = (item: any) => {
+    if (!projectId || !year) return false;
+    if (item.projectId !== projectId) return false;
+
+    const itemYear =
+      item.year
+        ? Number(item.year)
+        : item.createdAt?.toDate
+        ? item.createdAt.toDate().getFullYear()
         : null;
 
-    const matchesYear = payYear == Number(year);
-    const matchesProject = p.projectId === projectId;
-    const matchesUnit = unitId ? p.unitId === unitId : true;
+    if (itemYear !== Number(year)) return false;
+    if (unitId && item.unitId !== unitId) return false;
 
-    return matchesYear && matchesProject && matchesUnit;
-  });
-
-  const paidMemberIds = new Set(filteredPayments.map(p => p.memberId));
-
-  const relevantMembers = members.filter(m => {
-    if (!projectId) return false;
-    if (m.status === "quit") return false;
-    if (unitId && m.unitId !== unitId) return false;
     return true;
-  });
+  };
 
-  const pendingMembers = relevantMembers.filter(m => !paidMemberIds.has(m.id));
+  const yearlyIncome = payments.filter(filterMatch);
+  const yearlyExpenses = expenses.filter(filterMatch);
 
-  const totalAmount = filteredPayments.reduce(
-    (sum, p) => sum + Number(p.amount || 0),
+  // ================= TOTALS =================
+  const totalIncome = yearlyIncome.reduce(
+    (s, p) => s + Number(p.amount || 0),
     0
   );
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
+  const totalExpense = yearlyExpenses.reduce(
+    (s, e) => s + Number(e.amount || 0),
+    0
+  );
 
+  const balance = totalIncome - totalExpense;
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8 text-black">
+
+      {/* BACK */}
       <button
         onClick={() => router.back()}
         className="mb-4 px-4 py-2 bg-black text-white rounded hover:opacity-80"
@@ -81,125 +89,82 @@ export default function YearlyPaymentsPage() {
         ← Back
       </button>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Yearly Payments Report
+      <h1 className="text-2xl font-bold mb-6">
+        Yearly Financial Overview
       </h1>
 
-      {/* Filters */}
+      {/* FILTERS */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
 
         <select
           value={projectId}
           onChange={e => setProjectId(e.target.value)}
-          className="border rounded px-3 py-2 text-gray-900"
+          className="border rounded px-3 py-2 text-black"
         >
           <option value="">Select Project</option>
           {projects.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </select>
 
         <select
           value={unitId}
           onChange={e => setUnitId(e.target.value)}
-          className="border rounded px-3 py-2 text-gray-900"
+          className="border rounded px-3 py-2 text-black"
         >
           <option value="">All Units</option>
           {units.map(u => (
-            <option key={u.id} value={u.id}>{u.name}</option>
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
           ))}
         </select>
 
         <select
           value={year}
           onChange={e => setYear(e.target.value)}
-          className="border rounded px-3 py-2 text-gray-900"
+          className="border rounded px-3 py-2 text-black"
         >
           <option value="">Select Year</option>
           {YEARS.map(y => (
-            <option key={y} value={y}>{y}</option>
+            <option key={y} value={y}>
+              {y}
+            </option>
           ))}
         </select>
 
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* SUMMARY */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
 
         <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Total Collected</p>
+          <p className="text-sm text-gray-600">Total Income</p>
           <h2 className="text-2xl font-bold text-green-700">
-            ₹{totalAmount}
+            ₹{formatINR(totalIncome)}
           </h2>
         </div>
 
         <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Payments Recorded</p>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {filteredPayments.length}
-          </h2>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Members Paid</p>
-          <h2 className="text-2xl font-bold text-green-700">
-            {paidMemberIds.size}
-          </h2>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl border shadow">
-          <p className="text-sm text-gray-600">Pending Members</p>
+          <p className="text-sm text-gray-600">Total Expense</p>
           <h2 className="text-2xl font-bold text-red-700">
-            {pendingMembers.length}
+            ₹{formatINR(totalExpense)}
           </h2>
         </div>
 
-      </div>
+        <div className="bg-white p-5 rounded-xl border shadow">
+          <p className="text-sm text-gray-600">Net Balance</p>
+          <h2
+            className={`text-2xl font-bold ${
+              balance >= 0 ? "text-green-700" : "text-red-700"
+            }`}
+          >
+            ₹{formatINR(balance)}
+          </h2>
+        </div>
 
-      {/* Paid Members */}
-      <div className="bg-white p-4 rounded-xl border shadow-sm mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Paid Members
-        </h2>
-
-        {filteredPayments.length === 0 && (
-          <p className="text-gray-600">No payments found.</p>
-        )}
-
-        <ul className="space-y-2">
-          {filteredPayments.map(p => (
-            <li key={p.id} className="p-3 border rounded bg-gray-50 flex justify-between">
-              <span className="font-medium text-gray-900">
-                {p.memberName} ({p.memberNumber})
-              </span>
-              <span className="text-green-700 font-bold">
-                ₹{p.amount}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Pending Members */}
-      <div className="bg-white p-4 rounded-xl border shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Pending Members
-        </h2>
-
-        {pendingMembers.length === 0 && (
-          <p className="text-gray-600">No pending members.</p>
-        )}
-
-        <ul className="space-y-2">
-          {pendingMembers.map(m => (
-            <li key={m.id} className="p-3 border rounded bg-red-50 flex justify-between">
-              <span className="font-medium text-gray-900">
-                {m.name} ({m.number})
-              </span>
-              <span className="text-red-700 font-bold">Pending</span>
-            </li>
-          ))}
-        </ul>
       </div>
 
     </div>
