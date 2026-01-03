@@ -4,13 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 
-/* ================= HELPERS ================= */
-const money = (n:number) =>
-  new Intl.NumberFormat("en-IN").format(Math.round(n || 0));
+/* ================= FORMATTERS ================= */
+const money = (n: number) =>
+  new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(n || 0);
+
+const money2 = (n: number) =>
+  new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n || 0);
 
 /* ================= COMPONENT ================= */
 export default function ShareDetailsPage() {
-
   const [projects, setProjects] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -42,11 +49,10 @@ export default function ShareDetailsPage() {
     load();
   }, []);
 
-  /* ================= CORE CALC ================= */
+  /* ================= CALCULATIONS ================= */
   const rows = useMemo(() => {
     return projects.map(project => {
 
-      // 1️⃣ Share holder payments (ALL members)
       const projectPayments = payments.filter(
         p => p.projectId === project.id
       );
@@ -55,31 +61,26 @@ export default function ShareDetailsPage() {
         (s,p)=>s+Number(p.amount||0),0
       );
 
-      // 2️⃣ Quit member payments
       const quitMemberIds = members
         .filter(m => m.status === "quit" && m.quitProjectId === project.id)
         .map(m => m.id);
 
-      const quitPayments = projectPayments.filter(
-        p => quitMemberIds.includes(p.memberId)
-      ).reduce((s,p)=>s+Number(p.amount||0),0);
+      const quitPayments = projectPayments
+        .filter(p => quitMemberIds.includes(p.memberId))
+        .reduce((s,p)=>s+Number(p.amount||0),0);
 
-      // 3️⃣ Other income
       const other = otherIncome
         .filter(o => o.projectId === project.id)
         .reduce((s,o)=>s+Number(o.amount||0),0);
 
-      // 4️⃣ Expense
       const expense = expenses
         .filter(e => e.projectId === project.id)
         .reduce((s,e)=>s+Number(e.amount||0),0);
 
-      // 5️⃣ Asset value
       const assetValue = assets
         .filter(a => a.projectId === project.id)
         .reduce((s,a)=>s+Number(a.value||0),0);
 
-      // 6️⃣ Calculations
       const totalIncome = totalSharePayment + other;
       const cashBalance = totalIncome - expense;
       const totalProjectValue = cashBalance + assetValue;
@@ -117,7 +118,6 @@ export default function ShareDetailsPage() {
 
       <div className="bg-white rounded-xl border shadow overflow-x-auto">
         <table className="min-w-full border-collapse text-sm">
-
           <thead className="bg-gray-200">
             <tr>
               {[
@@ -156,16 +156,15 @@ export default function ShareDetailsPage() {
                   ₹{money(r.totalProjectValue)}
                 </td>
                 <td className="border px-3 py-2">
-                  {money(r.totalShare)}
+                  {money2(r.totalShare)}
                 </td>
                 <td className="border px-3 py-2">₹1,000</td>
                 <td className="border px-3 py-2 font-bold text-green-700">
-                  ₹{money(r.currentShareValue)}
+                  ₹{money2(r.currentShareValue)}
                 </td>
               </tr>
             ))}
           </tbody>
-
         </table>
       </div>
 
