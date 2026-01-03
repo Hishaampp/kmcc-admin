@@ -200,6 +200,32 @@ export default function Dashboard() {
   </p>
 </Link>
 
+<Link
+  href="/dashboard/assets"
+  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50"
+>
+  <h3 className="text-lg font-semibold text-gray-900">
+    Project Assets
+  </h3>
+  <p className="text-gray-700 mt-1">
+    Manage project asset values.
+  </p>
+</Link>
+
+{/* Share Details */}
+<Link
+  href="/dashboard/reports/share-details"
+  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+>
+  <h3 className="text-lg font-semibold text-gray-900">
+    Share Details
+  </h3>
+  <p className="text-gray-700 mt-1">
+    View project-wise share value, assets, cash balance & returns.
+  </p>
+</Link>
+
+
 
           {/* ⭐ NEW — FULL PROJECT SUMMARY */}
           <Link

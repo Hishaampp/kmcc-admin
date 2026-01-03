@@ -10,6 +10,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
+/* ================= TYPES ================= */
+
 type Member = {
   id: string;
   name: string;
@@ -26,13 +28,17 @@ type Member = {
 type Payment = {
   id: string;
   memberId: string;
-  memberName: string;
-  amount: number;
-  month: string;
+  projectId: string;
   projectName: string;
   unitName: string;
+  memberName: string;
+  memberNumber: string;
+  amount: number;
+  month: string;
   year?: number | string;
 };
+
+/* ================= COMPONENT ================= */
 
 export default function QuitMembersPage() {
   const router = useRouter();
@@ -52,25 +58,28 @@ export default function QuitMembersPage() {
   ];
 
   const currentYear = new Date().getFullYear();
-  const YEARS = Array.from({ length: currentYear - 2023 + 3 }, (_, i) => 2023 + i);
+  const YEARS = Array.from(
+    { length: currentYear - 2023 + 3 },
+    (_, i) => 2023 + i
+  );
+
+  /* ================= LOAD DATA ================= */
 
   const fetchQuitMembers = async () => {
     const snap = await getDocs(collection(db, "members"));
-
     const data: Member[] = snap.docs
-      .map((d) => ({ id: d.id, ...(d.data() as any) }))
-      .filter((m) => m.status === "quit");
+      .map(d => ({ id: d.id, ...(d.data() as any) }))
+      .filter(m => m.status === "quit");
 
     setQuitMembers(data);
   };
 
   const fetchPayments = async () => {
     const snap = await getDocs(collection(db, "payments"));
-    const data: Payment[] = snap.docs.map((d) => ({
+    const data: Payment[] = snap.docs.map(d => ({
       id: d.id,
       ...(d.data() as any),
     }));
-
     setPayments(data);
   };
 
@@ -79,9 +88,18 @@ export default function QuitMembersPage() {
     fetchPayments();
   }, []);
 
-  const getMemberPayments = (memberId: string) => {
-    return payments.filter((p) => p.memberId === memberId);
+  /* ================= CORE FIX ================= */
+  const getMemberPayments = (member: Member) => {
+    if (!member.quitProjectId) return [];
+
+    return payments.filter(
+      p =>
+        p.memberId === member.id &&
+        p.projectId === member.quitProjectId
+    );
   };
+
+  /* ================= ADD PAYMENT ================= */
 
   const addPayment = async () => {
     if (!selectedMember || !month || !year || !amount) {
@@ -103,8 +121,6 @@ export default function QuitMembersPage() {
       createdAt: serverTimestamp(),
     });
 
-    alert("Payment Added Successfully");
-
     setAmount("");
     setMonth("");
     setYear("");
@@ -114,17 +130,17 @@ export default function QuitMembersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 p-8 text-black">
 
-      {/* 🔙 Back Button */}
+      {/* BACK */}
       <button
         onClick={() => router.back()}
-        className="mb-4 px-4 py-2 bg-black text-white rounded hover:opacity-80"
+        className="mb-4 px-4 py-2 bg-black text-white rounded"
       >
         ← Back
       </button>
 
-      <h1 className="text-2xl font-bold text-black mb-4">
+      <h1 className="text-2xl font-bold mb-4 text-black">
         Quit Members Report
       </h1>
 
@@ -134,28 +150,28 @@ export default function QuitMembersPage() {
         )}
 
         <ul className="space-y-2">
-          {quitMembers.map((m) => {
-            const memberPayments = getMemberPayments(m.id);
+          {quitMembers.map(m => {
+            const memberPayments = getMemberPayments(m);
             const totalPaid = memberPayments.reduce(
-              (sum, p) => sum + Number(p.amount || 0),
+              (s, p) => s + Number(p.amount || 0),
               0
             );
 
             return (
-              <li key={m.id} className="p-3 border rounded-lg bg-gray-50">
-                <div className="flex justify-between items-center">
+              <li key={m.id} className="p-3 border rounded bg-gray-50">
+                <div className="flex justify-between">
 
                   <div>
                     <p className="font-semibold text-black">
-                      {m.name} <span className="text-sm text-black">#{m.number}</span>
+                      {m.name} <span className="text-sm">#{m.number}</span>
                     </p>
 
                     <p className="text-sm text-black">
                       Unit: {m.unitName}
                     </p>
 
-                    <p className="text-sm text-black font-medium">
-                      Quit Project: {m.quitProjectName || m.quitProjectId || "Unknown"}
+                    <p className="text-sm font-medium text-black">
+                      Quit Project: {m.quitProjectName}
                     </p>
 
                     <p className="text-sm text-black">
@@ -171,7 +187,7 @@ export default function QuitMembersPage() {
                   </div>
 
                   <div className="text-right">
-                    <p className="font-bold text-black text-lg">
+                    <p className="font-bold text-lg text-black">
                       ₹{totalPaid}
                     </p>
 
@@ -187,7 +203,7 @@ export default function QuitMembersPage() {
                         setSelectedMember(m);
                         setShowAddPayment(true);
                       }}
-                      className="mt-4 px-3 py-1 bg-green-600 text-white rounded text-sm"
+                      className="mt-3 px-3 py-1 bg-green-600 text-white rounded text-sm"
                     >
                       Add Payment
                     </button>
@@ -201,20 +217,20 @@ export default function QuitMembersPage() {
       </div>
 
       {/* VIEW PAYMENTS MODAL */}
-      {selectedMember && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-6 rounded-xl w-[400px] shadow-lg max-h-[85vh] overflow-y-auto">
+      {selectedMember && !showAddPayment && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-[400px] max-h-[80vh] overflow-y-auto text-black">
 
-            <h2 className="text-lg font-semibold mb-2 text-black">
+            <h2 className="font-semibold mb-3 text-black">
               Payment History — {selectedMember.name}
             </h2>
 
-            {getMemberPayments(selectedMember.id).length === 0 && (
-              <p className="text-black">No payment history.</p>
+            {getMemberPayments(selectedMember).length === 0 && (
+              <p className="text-black">No payments found.</p>
             )}
 
             <ul className="space-y-2">
-              {getMemberPayments(selectedMember.id).map((p) => (
+              {getMemberPayments(selectedMember).map(p => (
                 <li key={p.id} className="p-2 border rounded bg-gray-50">
                   <p className="font-medium text-black">
                     ₹{p.amount}
@@ -240,40 +256,36 @@ export default function QuitMembersPage() {
 
       {/* ADD PAYMENT MODAL */}
       {showAddPayment && selectedMember && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-          <div className="bg-white p-6 rounded-xl w-[380px] shadow-lg">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-[380px] text-black">
 
-            <h2 className="text-lg font-semibold mb-3 text-black">
+            <h2 className="font-semibold mb-3 text-black">
               Add Payment — {selectedMember.name}
             </h2>
 
             <select
               value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="border rounded px-3 py-2 w-full text-black mb-3"
+              onChange={e => setMonth(e.target.value)}
+              className="border rounded w-full px-3 py-2 mb-3 text-black"
             >
               <option value="">Select Month</option>
-              {MONTHS.map(m => (
-                <option key={m}>{m}</option>
-              ))}
+              {MONTHS.map(m => <option key={m}>{m}</option>)}
             </select>
 
             <select
               value={year}
-              onChange={(e) => setYear(e.target.value)}
-              className="border rounded px-3 py-2 w-full text-black mb-3"
+              onChange={e => setYear(e.target.value)}
+              className="border rounded w-full px-3 py-2 mb-3 text-black"
             >
               <option value="">Select Year</option>
-              {YEARS.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
+              {YEARS.map(y => <option key={y}>{y}</option>)}
             </select>
 
             <input
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={e => setAmount(e.target.value)}
               placeholder="Amount"
-              className="border rounded px-3 py-2 w-full text-black mb-3"
+              className="border rounded w-full px-3 py-2 mb-3 text-black"
             />
 
             <div className="flex justify-end gap-2">
