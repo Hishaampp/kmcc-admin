@@ -8,6 +8,9 @@ import {
   collection,
   getDocs,
   serverTimestamp,
+  updateDoc,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
 
 const MONTHS = [
@@ -28,7 +31,9 @@ export default function OtherProjectPayments() {
   const [year, setYear] = useState("");
   const [search, setSearch] = useState("");
 
-  // ================= LOAD DATA =================
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // ================= LOAD =================
   const load = async () => {
     const p = await getDocs(collection(db, "projects"));
     setProjects(p.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -36,7 +41,6 @@ export default function OtherProjectPayments() {
     const r = await getDocs(collection(db, "projectOtherPayments"));
     const list = r.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // sort latest → oldest
     list.sort((a:any,b:any)=>{
       const yA = Number(a.year) || 0;
       const yB = Number(b.year) || 0;
@@ -58,32 +62,65 @@ export default function OtherProjectPayments() {
     load();
   }, []);
 
-  // ================= ADD =================
-  const addPayment = async () => {
+  // ================= RESET FORM =================
+  const resetForm = () => {
+    setProjectId("");
+    setTitle("");
+    setAmount("");
+    setMonth("");
+    setYear("");
+    setEditingId(null);
+  };
+
+  // ================= ADD / UPDATE =================
+  const savePayment = async () => {
     if (!projectId || !title.trim() || !amount.trim() || !month || !year) return;
 
     const project = projects.find(p => p.id === projectId);
 
-    await addDoc(collection(db, "projectOtherPayments"), {
+    const payload = {
       projectId,
       projectName: project?.name || "",
       title,
       amount: Number(amount),
       month,
       year,
-      createdAt: serverTimestamp(),
-    });
+    };
 
-    setTitle("");
-    setAmount("");
-    setMonth("");
-    setYear("");
-    setProjectId("");
+    if (editingId) {
+      await updateDoc(doc(db, "projectOtherPayments", editingId), payload);
+    } else {
+      await addDoc(collection(db, "projectOtherPayments"), {
+        ...payload,
+        createdAt: serverTimestamp(),
+      });
+    }
 
+    resetForm();
     load();
   };
 
-  // ================= FILTER & SEARCH =================
+  // ================= EDIT =================
+  const editPayment = (i:any) => {
+    setEditingId(i.id);
+    setProjectId(i.projectId);
+    setTitle(i.title);
+    setAmount(String(i.amount));
+    setMonth(i.month);
+    setYear(i.year);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // ================= DELETE =================
+  const deletePayment = async (id:string) => {
+    const ok = confirm("Are you sure you want to delete this payment?");
+    if (!ok) return;
+
+    await deleteDoc(doc(db, "projectOtherPayments", id));
+    load();
+  };
+
+  // ================= FILTER =================
   const filtered = records.filter((i:any)=>{
     let ok = true;
 
@@ -115,7 +152,7 @@ export default function OtherProjectPayments() {
       {/* BACK */}
       <button
         onClick={() => router.back()}
-        className="mb-4 px-4 py-2 bg-black text-white rounded hover:opacity-80"
+        className="mb-4 px-4 py-2 bg-black text-white rounded"
       >
         ← Back
       </button>
@@ -124,104 +161,48 @@ export default function OtherProjectPayments() {
         Other Project Payments
       </h1>
 
-      {/* ADD FORM */}
+      {/* FORM */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6">
         <h2 className="text-lg font-semibold mb-3">
-          Add Other Project Payment
+          {editingId ? "Edit Payment" : "Add Other Project Payment"}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-
-          <select
-            value={projectId}
-            onChange={e=>setProjectId(e.target.value)}
-            className="border rounded px-3 py-2 text-black"
-          >
+          <select value={projectId} onChange={e=>setProjectId(e.target.value)} className="border px-3 py-2">
             <option value="">Select Project</option>
             {projects.map(p=>(
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
 
-          <input
-            value={title}
-            onChange={e=>setTitle(e.target.value)}
-            placeholder="Payment Title"
-            className="border rounded px-3 py-2 text-black"
-          />
+          <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Title" className="border px-3 py-2" />
+          <input value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Amount" className="border px-3 py-2" />
 
-          <input
-            value={amount}
-            onChange={e=>setAmount(e.target.value)}
-            placeholder="Amount"
-            className="border rounded px-3 py-2 text-black"
-          />
-
-          <select
-            value={month}
-            onChange={e=>setMonth(e.target.value)}
-            className="border rounded px-3 py-2 text-black"
-          >
-            <option value="">Select Month</option>
-            {MONTHS.map(m=>(
-              <option key={m}>{m}</option>
-            ))}
+          <select value={month} onChange={e=>setMonth(e.target.value)} className="border px-3 py-2">
+            <option value="">Month</option>
+            {MONTHS.map(m=><option key={m}>{m}</option>)}
           </select>
 
-          <input
-            value={year}
-            onChange={e=>setYear(e.target.value)}
-            placeholder="Year"
-            className="border rounded px-3 py-2 text-black"
-          />
+          <input value={year} onChange={e=>setYear(e.target.value)} placeholder="Year" className="border px-3 py-2" />
         </div>
 
-        <button
-          onClick={addPayment}
-          className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg"
-        >
-          Save Payment
-        </button>
-      </div>
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={savePayment}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg"
+          >
+            {editingId ? "Update Payment" : "Save Payment"}
+          </button>
 
-      {/* FILTER + SEARCH */}
-      <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
-
-        <select
-          value={projectId}
-          onChange={e=>setProjectId(e.target.value)}
-          className="border rounded px-3 py-2 text-black"
-        >
-          <option value="">All Projects</option>
-          {projects.map(p=>(
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={month}
-          onChange={e=>setMonth(e.target.value)}
-          className="border rounded px-3 py-2 text-black"
-        >
-          <option value="">All Months</option>
-          {MONTHS.map(m=>(
-            <option key={m}>{m}</option>
-          ))}
-        </select>
-
-        <input
-          value={year}
-          onChange={e=>setYear(e.target.value)}
-          placeholder="Year"
-          className="border rounded px-3 py-2 text-black"
-        />
-
-        <input
-          placeholder="Search payment"
-          value={search}
-          onChange={e=>setSearch(e.target.value)}
-          className="border rounded px-3 py-2 text-black"
-        />
+          {editingId && (
+            <button
+              onClick={resetForm}
+              className="px-4 py-2 bg-gray-300 rounded-lg"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SUMMARY */}
@@ -236,27 +217,34 @@ export default function OtherProjectPayments() {
       <div className="bg-white rounded-xl border shadow-sm p-4">
         <h2 className="text-lg font-semibold mb-3">Payments</h2>
 
-        {filtered.length === 0 && (
-          <p className="text-gray-600">No records found.</p>
-        )}
+        {filtered.length === 0 && <p>No records found.</p>}
 
         <ul className="space-y-2">
           {filtered.map((i:any)=>(
-            <li
-              key={i.id}
-              className="p-3 border rounded bg-gray-50 flex justify-between"
-            >
+            <li key={i.id} className="p-3 border rounded bg-gray-50 flex justify-between">
               <div>
-                <p className="font-semibold text-gray-900">{i.title}</p>
+                <p className="font-semibold">{i.title}</p>
                 <p className="text-sm text-gray-700">{i.projectName}</p>
-                <p className="text-xs text-gray-600">
-                  {i.month || ""} {i.year || ""}
-                </p>
+                <p className="text-xs text-gray-600">{i.month} {i.year}</p>
               </div>
 
-              <span className="font-bold text-green-700">
-                ₹{i.amount}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-green-700">₹{i.amount}</span>
+
+                <button
+                  onClick={()=>editPayment(i)}
+                  className="text-blue-600 text-sm"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={()=>deletePayment(i.id)}
+                  className="text-red-600 text-sm"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>
