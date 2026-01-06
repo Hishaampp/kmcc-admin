@@ -149,7 +149,7 @@ export default function Dashboard() {
             </p>
           </Link>
 
-          {/* Pending Report */}
+          {/* Pending Report
           <Link
             href="/dashboard/payments/pending"
             className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
@@ -160,7 +160,7 @@ export default function Dashboard() {
             <p className="text-gray-700 mt-1">
               View unpaid members and follow up.
             </p>
-          </Link>
+          </Link> */}
 
           {/* Add Expenses */}
           <Link

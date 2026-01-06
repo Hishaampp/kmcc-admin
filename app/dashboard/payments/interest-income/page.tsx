@@ -7,6 +7,9 @@ import {
   addDoc,
   collection,
   getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
   serverTimestamp,
 } from "firebase/firestore";
 
@@ -15,10 +18,15 @@ const MONTHS = [
   "July","August","September","October","November","December"
 ];
 
+// INR formatter
+const f = (n:number) =>
+  new Intl.NumberFormat("en-IN").format(Number(n || 0));
+
 export default function InterestIncomePage() {
   const router = useRouter();
 
   const [records, setRecords] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
@@ -26,10 +34,6 @@ export default function InterestIncomePage() {
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
   const [search, setSearch] = useState("");
-
-  // ================= FORMAT ₹ =================
-  const f = (n:number) =>
-    new Intl.NumberFormat("en-IN").format(Number(n || 0));
 
   // ================= LOAD =================
   const load = async () => {
@@ -57,26 +61,56 @@ export default function InterestIncomePage() {
     load();
   }, []);
 
-  // ================= ADD =================
-  const addRecord = async () => {
-    if (!title.trim() || !amount.trim() || !month || !year) return;
-
-    await addDoc(collection(db, "interestLedger"), {
-      title,
-      type,
-      amount: Number(amount),
-      month,
-      year,
-      createdAt: serverTimestamp(),
-    });
-
+  // ================= RESET FORM =================
+  const resetForm = () => {
+    setEditingId(null);
     setTitle("");
     setAmount("");
     setMonth("");
     setYear("");
     setType("income");
+  };
 
+  // ================= ADD / UPDATE =================
+  const saveRecord = async () => {
+    if (!title.trim() || !amount.trim() || !month || !year) return;
+
+    const payload = {
+      title,
+      type,
+      amount: Number(amount),
+      month,
+      year,
+    };
+
+    if (editingId) {
+      await updateDoc(doc(db, "interestLedger", editingId), payload);
+    } else {
+      await addDoc(collection(db, "interestLedger"), {
+        ...payload,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    resetForm();
     load();
+  };
+
+  // ================= DELETE =================
+  const deleteRecord = async (id: string) => {
+    if (!confirm("Delete this record?")) return;
+    await deleteDoc(doc(db, "interestLedger", id));
+    load();
+  };
+
+  // ================= EDIT =================
+  const editRecord = (r:any) => {
+    setEditingId(r.id);
+    setTitle(r.title);
+    setAmount(String(r.amount));
+    setMonth(r.month);
+    setYear(String(r.year));
+    setType(r.type);
   };
 
   // ================= SEARCH =================
@@ -108,7 +142,7 @@ export default function InterestIncomePage() {
   const balance = totalIncome - totalExpense;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8 text-gray-900">
+    <div className="min-h-screen bg-gray-100 p-8 text-black">
 
       {/* BACK */}
       <button
@@ -122,10 +156,10 @@ export default function InterestIncomePage() {
         Interest Ledger (Independent)
       </h1>
 
-      {/* ADD FORM */}
+      {/* FORM */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6">
         <h2 className="text-lg font-semibold mb-3">
-          Add Record
+          {editingId ? "Edit Record" : "Add Record"}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -133,7 +167,7 @@ export default function InterestIncomePage() {
           <input
             value={title}
             onChange={e=>setTitle(e.target.value)}
-            placeholder="Title (Bank Interest / Charges)"
+            placeholder="Title"
             className="border rounded px-3 py-2"
           />
 
@@ -172,12 +206,25 @@ export default function InterestIncomePage() {
           />
         </div>
 
-        <button
-          onClick={addRecord}
-          className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg"
-        >
-          Save
-        </button>
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={saveRecord}
+            className={`px-4 py-2 text-white rounded-lg ${
+              editingId ? "bg-blue-600" : "bg-green-600"
+            }`}
+          >
+            {editingId ? "Update" : "Save"}
+          </button>
+
+          {editingId && (
+            <button
+              onClick={resetForm}
+              className="px-4 py-2 border rounded"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SEARCH */}
@@ -216,24 +263,36 @@ export default function InterestIncomePage() {
           {filtered.map((i:any)=>(
             <li
               key={i.id}
-              className="p-3 border rounded bg-gray-50 flex justify-between"
+              className="p-3 border rounded bg-gray-50 flex justify-between items-center"
             >
               <div>
-                <p className="font-semibold text-gray-900">
-                  {i.title}
-                </p>
-                <p className="text-sm text-gray-700">
+                <p className="font-semibold">{i.title}</p>
+                <p className="text-sm">
                   {i.month} {i.year} • {i.type}
                 </p>
               </div>
 
-              <span
-                className={`font-bold ${
+              <div className="flex items-center gap-4">
+                <span className={`font-bold ${
                   i.type==="income" ? "text-green-700" : "text-red-700"
-                }`}
-              >
-                ₹{f(i.amount)}
-              </span>
+                }`}>
+                  ₹{f(i.amount)}
+                </span>
+
+                <button
+                  onClick={()=>editRecord(i)}
+                  className="text-blue-600 text-sm"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={()=>deleteRecord(i.id)}
+                  className="text-red-600 text-sm"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -243,17 +302,14 @@ export default function InterestIncomePage() {
   );
 }
 
-/* ================= SMALL CARD ================= */
-
+/* ================= CARD ================= */
 function Card({ title, value, green, red }: any) {
   return (
     <div className="bg-white p-6 rounded-xl border shadow">
       <p className="text-sm text-gray-600">{title}</p>
-      <h2
-        className={`text-3xl font-bold ${
-          green ? "text-green-700" : red ? "text-red-700" : ""
-        }`}
-      >
+      <h2 className={`text-3xl font-bold ${
+        green ? "text-green-700" : red ? "text-red-700" : ""
+      }`}>
         {value}
       </h2>
     </div>

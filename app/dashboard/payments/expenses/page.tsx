@@ -11,17 +11,22 @@ const MONTHS = [
   "July","August","September","October","November","December"
 ];
 
-// INDIAN RUPEE FORMATTER
 const formatINR = (num:number) =>
-  new Intl.NumberFormat("en-IN").format(num);
+  new Intl.NumberFormat("en-IN").format(num || 0);
 
 export default function ExpensesPage() {
   const router = useRouter();
 
   const { loading, projects } = usePayments();
-  const { addExpense, expenses } = useExpenses();
+  const {
+    expenses,
+    addExpense,
+    updateExpense,
+    deleteExpenseById
+  } = useExpenses();
 
   const [search, setSearch] = useState("");
+  const [editingExpense, setEditingExpense] = useState<any | null>(null);
 
   if (loading) {
     return (
@@ -31,69 +36,80 @@ export default function ExpensesPage() {
     );
   }
 
-  // SORT (Latest First)
+  // ================= SORT =================
   const sortedExpenses = [...expenses].sort((a:any,b:any)=>{
+    const yA = Number(a.year) || 0;
+    const yB = Number(b.year) || 0;
+    if(yA !== yB) return yB - yA;
 
-    const yearA = Number(a.year) || 0;
-    const yearB = Number(b.year) || 0;
-    if(yearA !== yearB) return yearB - yearA;
+    const mA = MONTHS.indexOf(a.month);
+    const mB = MONTHS.indexOf(b.month);
+    if(mA !== mB) return mB - mA;
 
-    const monthA = MONTHS.indexOf(a.month);
-    const monthB = MONTHS.indexOf(b.month);
-    if(monthA !== monthB) return monthB - monthA;
-
-    const timeA = a.createdAt?.toMillis?.() || 0;
-    const timeB = b.createdAt?.toMillis?.() || 0;
-    return timeB - timeA;
+    const tA = a.createdAt?.toMillis?.() || 0;
+    const tB = b.createdAt?.toMillis?.() || 0;
+    return tB - tA;
   });
 
-  // SEARCH
+  // ================= SEARCH =================
   const filteredExpenses = sortedExpenses.filter((e:any)=>{
     if(!search.trim()) return true;
+    const k = search.toLowerCase();
 
-    const keyword = search.toLowerCase();
-
-    const fields = [
+    return [
       e.title,
       e.projectName,
       e.month,
-      e.year ? String(e.year) : "",
-      e.amount ? String(e.amount) : ""
-    ];
-
-    return fields.some(f =>
-      (f || "").toString().toLowerCase().includes(keyword)
-    );
+      e.year,
+      e.amount
+    ].join(" ").toLowerCase().includes(k);
   });
 
+  // ================= HANDLERS =================
+  const handleSubmit = async (data:any) => {
+    if(editingExpense){
+      await updateExpense(editingExpense.id, data);
+      setEditingExpense(null);
+    } else {
+      await addExpense(data);
+    }
+  };
+
+  const handleDelete = async (id:string) => {
+    const ok = confirm("Are you sure you want to delete this expense?");
+    if(ok) await deleteExpenseById(id);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 p-8 text-gray-900">
+    <div className="min-h-screen bg-gray-100 p-8 text-black">
 
       {/* Back */}
       <button
         onClick={() => router.back()}
-        className="mb-4 px-4 py-2 bg-black text-white rounded hover:opacity-80"
+        className="mb-4 px-4 py-2 bg-black text-white rounded"
       >
         ← Back
       </button>
 
       <h1 className="text-2xl font-bold mb-4">
-        Add Expenses
+        {editingExpense ? "Edit Expense" : "Add Expense"}
       </h1>
 
-      {/* ADD FORM */}
+      {/* FORM */}
       <ExpenseForm
         projects={projects}
-        onSubmit={addExpense}
+        onSubmit={handleSubmit}
+        defaultValues={editingExpense}
+        onCancel={() => setEditingExpense(null)}
       />
 
       {/* SEARCH */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-4">
         <input
-          placeholder="Search by Title / Project / Month / Year / Amount"
+          placeholder="Search expenses"
           value={search}
           onChange={(e)=>setSearch(e.target.value)}
-          className="border rounded px-3 py-2 w-full text-black placeholder-gray-700"
+          className="border rounded px-3 py-2 w-full"
         />
       </div>
 
@@ -104,28 +120,43 @@ export default function ExpensesPage() {
         </h2>
 
         {filteredExpenses.length === 0 && (
-          <p className="text-gray-600">No expenses found.</p>
+          <p>No expenses found.</p>
         )}
 
         <ul className="space-y-2">
           {filteredExpenses.map((e:any)=>(
             <li
               key={e.id}
-              className="p-3 border rounded bg-gray-50 flex justify-between"
+              className="p-3 border rounded bg-gray-50 flex justify-between items-center"
             >
               <div>
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold">
                   {e.title}
                 </p>
-
-                <p className="text-sm text-gray-700">
+                <p className="text-sm">
                   {e.projectName || "No Project"} — {e.month} {e.year}
                 </p>
               </div>
 
-              <span className="font-bold text-red-700">
-                ₹{formatINR(Number(e.amount || 0))}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="font-bold text-red-700">
+                  ₹{formatINR(e.amount)}
+                </span>
+
+                <button
+                  onClick={() => setEditingExpense(e)}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => handleDelete(e.id)}
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>

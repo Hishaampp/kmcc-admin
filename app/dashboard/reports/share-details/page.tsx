@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
 
 /* ================= FORMATTERS ================= */
 const money = (n: number) =>
@@ -108,15 +110,50 @@ export default function ShareDetailsPage() {
     });
   }, [projects, payments, expenses, otherIncome, assets, members]);
 
+  /* ================= PDF EXPORT ================= */
+  const exportPDF = async () => {
+    const element = document.getElementById("pdf-content");
+
+    if (!element) {
+      alert("PDF content not found");
+      return;
+    }
+
+    const dataUrl = await toPng(element, {
+      backgroundColor: "#ffffff",
+      pixelRatio: 2,
+      cacheBust: true,
+    });
+
+    const pdf = new jsPDF("l", "mm", "a4");
+
+    const imgProps = pdf.getImageProperties(dataUrl);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight);
+    pdf.save("Share-Details.pdf");
+  };
+
   /* ================= RENDER ================= */
   return (
     <div className="min-h-screen bg-gray-100 p-8 text-black">
 
-      <h1 className="text-3xl font-bold mb-6">
-        Share Details
-      </h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Share Details</h1>
 
-      <div className="bg-white rounded-xl border shadow overflow-x-auto">
+        <button
+          onClick={exportPDF}
+          className="px-4 py-2 bg-black text-white rounded hover:opacity-80"
+        >
+          Export PDF
+        </button>
+      </div>
+
+      <div
+        id="pdf-content"
+        className="bg-white rounded-xl border shadow overflow-x-auto p-4"
+      >
         <table className="min-w-full border-collapse text-sm">
           <thead className="bg-gray-200">
             <tr>

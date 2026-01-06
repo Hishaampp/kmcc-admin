@@ -28,7 +28,7 @@ export default function MonthlyBalanceReport() {
 
   const YEARS = Array.from({ length: 6 }, (_, i) => 2023 + i);
 
-  // ================= LOAD OTHER PAYMENTS =================
+  /* ================= LOAD OTHER PAYMENTS ================= */
   useEffect(() => {
     const load = async () => {
       const snap = await getDocs(collection(db, "projectOtherPayments"));
@@ -37,7 +37,7 @@ export default function MonthlyBalanceReport() {
     load();
   }, []);
 
-  // ================= FILTER =================
+  /* ================= FILTER ================= */
   const match = (i: any) => {
     if (projectId && i.projectId !== projectId) return false;
     if (unitId && i.unitId !== unitId) return false;
@@ -50,11 +50,11 @@ export default function MonthlyBalanceReport() {
   const expense = expenses.filter(match);
   const otherIncome = otherPayments.filter(match);
 
-  // ================= FORMAT ₹ =================
+  /* ================= FORMAT ₹ ================= */
   const f = (n: number) =>
     new Intl.NumberFormat("en-IN").format(Number(n || 0));
 
-  // ================= UNIT WISE =================
+  /* ================= UNIT WISE ================= */
   const unitWiseIncome = useMemo(() => {
     const map: any = {};
     memberIncome.forEach((p: any) => {
@@ -70,7 +70,7 @@ export default function MonthlyBalanceReport() {
     return Object.values(map).sort((a: any, b: any) => b.total - a.total);
   }, [memberIncome]);
 
-  // ================= TOTALS =================
+  /* ================= TOTALS ================= */
   const totalMemberIncome = memberIncome.reduce(
     (s, p) => s + Number(p.amount || 0), 0
   );
@@ -86,17 +86,34 @@ export default function MonthlyBalanceReport() {
   const totalIncome = totalMemberIncome + totalOtherIncome;
   const balance = totalIncome - totalExpense;
 
+  /* ================= PDF EXPORT ================= */
+  const exportPDF = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 text-black">
 
-      {/* TITLE */}
-      <h1 className="text-3xl font-bold mb-1">Monthly Balance Sheet</h1>
-      <p className="text-gray-700 mb-6">
+      {/* ACTION BAR (HIDDEN IN PRINT) */}
+      <div className="flex justify-between items-center mb-4 print:hidden">
+        <h1 className="text-3xl font-bold">
+          Monthly Balance Sheet
+        </h1>
+
+        <button
+          onClick={exportPDF}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg"
+        >
+          Export PDF
+        </button>
+      </div>
+
+      <p className="text-gray-700 mb-6 print:hidden">
         Complete financial overview (project / unit / member)
       </p>
 
-      {/* FILTERS */}
-      <div className="bg-white p-5 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+      {/* FILTERS (HIDDEN IN PRINT) */}
+      <div className="bg-white p-5 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-3 print:hidden">
         <select value={projectId} onChange={e=>setProjectId(e.target.value)} className="border px-3 py-2">
           <option value="">All Projects</option>
           {projects.map(p=>(
@@ -122,8 +139,8 @@ export default function MonthlyBalanceReport() {
         </select>
       </div>
 
-      {/* VIEW SELECTOR */}
-      <div className="bg-white p-3 rounded-xl border shadow-sm mb-6 flex flex-wrap gap-2">
+      {/* VIEW SELECTOR (HIDDEN IN PRINT) */}
+      <div className="bg-white p-3 rounded-xl border shadow-sm mb-6 flex flex-wrap gap-2 print:hidden">
         {[
           ["overview","Overview"],
           ["unit","Unit Income"],
@@ -198,6 +215,18 @@ export default function MonthlyBalanceReport() {
           red
         />
       )}
+
+      {/* PRINT STYLES */}
+      <style jsx global>{`
+        @media print {
+          body {
+            background: white;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
 
     </div>
   );
