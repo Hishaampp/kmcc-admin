@@ -6,6 +6,9 @@ import {
   collection,
   addDoc,
   getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
   serverTimestamp,
 } from "firebase/firestore";
 
@@ -18,6 +21,7 @@ export default function ProfitPage() {
   const [amount, setAmount] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const MONTHS = [
     "January","February","March","April","May","June",
@@ -36,22 +40,51 @@ export default function ProfitPage() {
 
   useEffect(()=>{ load(); },[]);
 
-  const addProfit = async () => {
+  const resetForm = () => {
+    setProjectId(""); setTitle(""); setAmount(""); setMonth(""); setYear("");
+    setEditingId(null);
+  };
+
+  const saveProfit = async () => {
     if(!projectId || !title || !amount) return;
 
     const project = projects.find(p=>p.id===projectId);
 
-    await addDoc(collection(db,"projectProfits"),{
+    const payload = {
       projectId,
       projectName: project?.name || "",
       title,
       amount: Number(amount),
       month,
       year,
-      createdAt: serverTimestamp()
-    });
+    };
 
-    setTitle(""); setAmount(""); setMonth(""); setYear("");
+    if(editingId){
+      await updateDoc(doc(db,"projectProfits",editingId), payload);
+    } else {
+      await addDoc(collection(db,"projectProfits"),{
+        ...payload,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    resetForm();
+    load();
+  };
+
+  const editProfit = (r:any) => {
+    setEditingId(r.id);
+    setProjectId(r.projectId);
+    setTitle(r.title);
+    setAmount(String(r.amount));
+    setMonth(r.month);
+    setYear(r.year);
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
+  const deleteProfit = async (id:string) => {
+    if(!confirm("Delete this profit entry?")) return;
+    await deleteDoc(doc(db,"projectProfits",id));
     load();
   };
 
@@ -62,8 +95,11 @@ export default function ProfitPage() {
 
       <h1 className="text-2xl font-bold mb-4">Project Profits</h1>
 
+      {/* FORM */}
       <div className="bg-white p-4 rounded-xl border mb-6">
-        <h2 className="font-semibold mb-3">Add Profit</h2>
+        <h2 className="font-semibold mb-3">
+          {editingId ? "Edit Profit" : "Add Profit"}
+        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <select value={projectId} onChange={e=>setProjectId(e.target.value)} className="border p-2">
@@ -84,24 +120,39 @@ export default function ProfitPage() {
           <input placeholder="Year" value={year} onChange={e=>setYear(e.target.value)} className="border p-2"/>
         </div>
 
-        <button onClick={addProfit} className="mt-3 px-4 py-2 bg-green-600 text-white rounded">
-          Save Profit
-        </button>
+        <div className="mt-3 flex gap-3">
+          <button onClick={saveProfit} className="px-4 py-2 bg-green-600 text-white rounded">
+            {editingId ? "Update Profit" : "Save Profit"}
+          </button>
+
+          {editingId && (
+            <button onClick={resetForm} className="px-4 py-2 bg-gray-300 rounded">
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* SUMMARY */}
       <div className="bg-white p-4 rounded-xl border mb-4">
         <p className="text-sm">Total Profit</p>
         <h2 className="text-2xl font-bold text-green-700">₹{f(total)}</h2>
       </div>
 
+      {/* LIST */}
       <div className="bg-white p-4 rounded-xl border">
         <h2 className="font-semibold mb-3">Profit Records</h2>
 
         <ul className="divide-y">
           {records.map(r=>(
-            <li key={r.id} className="py-2 flex justify-between">
+            <li key={r.id} className="py-2 flex justify-between items-center">
               <span>{r.projectName} — {r.title}</span>
-              <span className="font-bold text-green-700">₹{f(r.amount)}</span>
+
+              <div className="flex gap-3 items-center">
+                <span className="font-bold text-green-700">₹{f(r.amount)}</span>
+                <button onClick={()=>editProfit(r)} className="text-blue-600 text-sm">Edit</button>
+                <button onClick={()=>deleteProfit(r.id)} className="text-red-600 text-sm">Delete</button>
+              </div>
             </li>
           ))}
         </ul>
