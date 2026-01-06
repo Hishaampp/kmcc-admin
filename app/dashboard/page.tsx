@@ -10,10 +10,32 @@ export default function Dashboard() {
     window.location.href = "/login";
   };
 
+  const Card = ({
+    href,
+    title,
+    description,
+  }: {
+    href: string;
+    title: string;
+    description: string;
+  }) => (
+    <Link
+      href={href}
+      className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
+    >
+      <h3 className="text-lg font-semibold text-gray-900">
+        {title}
+      </h3>
+      <p className="text-gray-700 mt-1 text-sm">
+        {description}
+      </p>
+    </Link>
+  );
+
   return (
     <div className="min-h-screen bg-gray-100">
 
-      {/* Top Navbar */}
+      {/* ================= TOP BAR ================= */}
       <div className="w-full bg-white border-b shadow-sm flex justify-between items-center px-6 py-3">
         <h1 className="text-lg font-semibold text-gray-800">
           KMCC Admin Panel
@@ -21,227 +43,131 @@ export default function Dashboard() {
 
         <button
           onClick={logout}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition"
+          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
         >
           Logout
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto py-10 px-6">
+      {/* ================= CONTENT ================= */}
+      <div className="max-w-7xl mx-auto py-10 px-6">
 
         <h2 className="text-2xl font-bold text-gray-800 mb-6">
           Welcome Super Admin 👋
         </h2>
 
-        {/* Main Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-          {/* Projects */}
-          <Link
+        {/* ================= CORE MANAGEMENT ================= */}
+        <Section title="Core Management">
+          <Card
             href="/dashboard/projects"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:shadow-md hover:bg-gray-50 transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Manage Projects
-            </h3>
-            <p className="text-gray-700 mt-1">
-              Create & manage running or completed projects.
-            </p>
-          </Link>
-
-          {/* Units */}
-          <Link
+            title="Manage Projects"
+            description="Create, edit and manage all projects."
+          />
+          <Card
             href="/dashboard/units"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:shadow-md hover:bg-gray-50 transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Manage Units
-            </h3>
-            <p className="text-gray-700 mt-1">
-              Register KMCC units and organize structure.
-            </p>
-          </Link>
-
-          {/* Members */}
-          <Link
+            title="Manage Units"
+            description="Create and organize KMCC units."
+          />
+          <Card
             href="/dashboard/members"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:shadow-md hover:bg-gray-50 transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Manage Members
-            </h3>
-            <p className="text-gray-700 mt-1">
-              Add & manage members under units.
-            </p>
-          </Link>
-
-          {/* Payments Entry */}
-          <Link
-            href="/dashboard/payments"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:shadow-md hover:bg-gray-50 transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Share Holder Payments
-            </h3>
-            <p className="text-gray-700 mt-1">
-              Enter member payments and view history records.
-            </p>
-          </Link>
-
-          <Link
-  href="/dashboard/payments/other-project-payments"
-  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
->
-  <h3 className="text-lg font-semibold text-gray-900">
-    Other Project Payments
-  </h3>
-  <p className="text-gray-700 mt-1">
-    Add payments directly under projects (without units / members)
-  </p>
-</Link>
-
-
-          {/* Quit Members */}
-          <Link
+            title="Manage Members"
+            description="Add and manage members under units."
+          />
+          <Card
             href="/dashboard/quit-members"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Quit Members Report
-            </h3>
-            <p className="text-gray-700 mt-1">
-              View members who quit and full records.
-            </p>
-          </Link>
-        </div>
+            title="Quit Members"
+            description="Track members who exited projects."
+          />
+        </Section>
 
-        {/* Payments Analytics Section */}
-        <h2 className="text-2xl font-bold text-gray-800 mt-10 mb-4">
-          Financial Reports 📊
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-          {/* Monthly Dashboard */}
-          {/* <Link
-            href="/dashboard/payments/monthly"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Monthly Report
-            </h3>
-            <p className="text-gray-700 mt-1">
-              View monthly collection and pending details.
-            </p>
-          </Link> */}
-
-          {/* Yearly Dashboard */}
-          <Link
-            href="/dashboard/payments/yearly"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Yearly Overview
-            </h3>
-            <p className="text-gray-700 mt-1">
-              Track yearly performance and totals.
-            </p>
-          </Link>
-
-          {/* Pending Report
-          <Link
-            href="/dashboard/payments/pending"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Pending Payments
-            </h3>
-            <p className="text-gray-700 mt-1">
-              View unpaid members and follow up.
-            </p>
-          </Link> */}
-
-          {/* Add Expenses */}
-          <Link
+        {/* ================= PAYMENTS ================= */}
+        <Section title="Payments & Collections">
+          <Card
+            href="/dashboard/payments"
+            title="Share Holder Payments"
+            description="Enter and manage member payments."
+          />
+          <Card
+            href="/dashboard/payments/other-project-payments"
+            title="Other Project Payments"
+            description="Payments without members or units."
+          />
+          <Card
             href="/dashboard/payments/expenses"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Add Expenses
-            </h3>
-            <p className="text-gray-700 mt-1">
-              Record expenses for projects or units.
-            </p>
-          </Link>
+            title="Project Expenses"
+            description="Record and manage project expenses."
+          />
+          <Card
+            href="/dashboard/payments/interest-income"
+            title="Interest Ledger"
+            description="Independent interest income & expense."
+          />
+        </Section>
 
-          {/* Monthly Balance */}
-          <Link
+        {/* ================= ASSETS & FINANCE ================= */}
+        <Section title="Assets & Finance">
+          <Card
+            href="/dashboard/assets"
+            title="Project Assets"
+            description="Maintain project asset values."
+          />
+          <Card
+            href="/dashboard/finance/investments"
+            title="Project Investments"
+            description="Add and track investments per project."
+          />
+          <Card
+            href="/dashboard/finance/profits"
+            title="Project Profits"
+            description="Record profits earned from projects."
+          />
+        </Section>
+
+        {/* ================= REPORTS ================= */}
+        <Section title="Reports & Analytics">
+          <Card
+            href="/dashboard/payments/yearly"
+            title="Yearly Overview"
+            description="Year-wise income and expense report."
+          />
+          <Card
             href="/dashboard/reports/monthly-balance"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Monthly Balance Sheet
-            </h3>
-            <p className="text-gray-700 mt-1">
-              View Income - Expense summary and balance.
-            </p>
-          </Link>
-
-          <Link
-  href="/dashboard/payments/interest-income"
-  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
->
-  <h3 className="text-lg font-semibold text-gray-900">
-    Interest Income
-  </h3>
-  <p className="text-gray-700 mt-1">
-    Add and track interest / bank credit incomes
-  </p>
-</Link>
-
-<Link
-  href="/dashboard/assets"
-  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50"
->
-  <h3 className="text-lg font-semibold text-gray-900">
-    Project Assets
-  </h3>
-  <p className="text-gray-700 mt-1">
-    Manage project asset values.
-  </p>
-</Link>
-
-{/* Share Details */}
-<Link
-  href="/dashboard/reports/share-details"
-  className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
->
-  <h3 className="text-lg font-semibold text-gray-900">
-    Share Details
-  </h3>
-  <p className="text-gray-700 mt-1">
-    View project-wise share value, assets, cash balance & returns.
-  </p>
-</Link>
-
-
-
-          {/* ⭐ NEW — FULL PROJECT SUMMARY */}
-          <Link
+            title="Monthly Balance Sheet"
+            description="Income, expense and net balance."
+          />
+          <Card
             href="/dashboard/reports/project-summary"
-            className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
-          >
-            <h3 className="text-lg font-semibold text-gray-900">
-              Project Full Summary
-            </h3>
-            <p className="text-gray-700 mt-1">
-              View total of project → all units, lifetime totals.
-            </p>
-          </Link>
+            title="Project Full Summary"
+            description="Lifetime project performance."
+          />
+          <Card
+            href="/dashboard/reports/share-details"
+            title="Share Details"
+            description="Share value, assets & cash balance."
+          />
+        </Section>
 
-        </div>
+      </div>
+    </div>
+  );
+}
 
+/* ================= REUSABLE SECTION ================= */
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-10">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">
+        {title}
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {children}
       </div>
     </div>
   );
