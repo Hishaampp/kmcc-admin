@@ -22,7 +22,10 @@ export default function YearlyPaymentsPage() {
   const [year, setYear] = useState("");
 
   const currentYear = new Date().getFullYear();
-  const YEARS = Array.from({ length: currentYear - 2023 + 3 }, (_, i) => 2023 + i);
+  const YEARS = Array.from(
+    { length: currentYear - 2023 + 3 },
+    (_, i) => 2023 + i
+  );
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
@@ -33,7 +36,7 @@ export default function YearlyPaymentsPage() {
         pay,
         other,
         profit,
-        mem
+        mem,
       ] = await Promise.all([
         getDocs(collection(db, "projects")),
         getDocs(collection(db, "units")),
@@ -111,6 +114,7 @@ export default function YearlyPaymentsPage() {
     0
   );
 
+  /* ✅ SAME LOGIC AS SHARE DETAILS */
   const totalIncome =
     totalMemberIncome + totalOtherIncome + totalProfit;
 
@@ -134,34 +138,47 @@ export default function YearlyPaymentsPage() {
 
       {/* FILTERS */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-        <select value={projectId} onChange={e=>setProjectId(e.target.value)} className="border px-3 py-2">
+        <select
+          value={projectId}
+          onChange={e => setProjectId(e.target.value)}
+          className="border px-3 py-2"
+        >
           <option value="">Select Project</option>
-          {projects.map(p=>(
+          {projects.map(p => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
 
-        <select value={unitId} onChange={e=>setUnitId(e.target.value)} className="border px-3 py-2">
+        <select
+          value={unitId}
+          onChange={e => setUnitId(e.target.value)}
+          className="border px-3 py-2"
+        >
           <option value="">All Units</option>
-          {units.map(u=>(
+          {units.map(u => (
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
 
-        <select value={year} onChange={e=>setYear(e.target.value)} className="border px-3 py-2">
+        <select
+          value={year}
+          onChange={e => setYear(e.target.value)}
+          className="border px-3 py-2"
+        >
           <option value="">Select Year</option>
-          {YEARS.map(y=>(
+          {YEARS.map(y => (
             <option key={y} value={y}>{y}</option>
           ))}
         </select>
       </div>
 
       {/* SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
 
         <Card title="Member Income" value={totalMemberIncome} green />
         <Card title="Other Income" value={totalOtherIncome} green />
         <Card title="Profit" value={totalProfit} green />
+        <Card title="Expense" value={totalExpense} red />
         <Card title="Quit Refund" value={quitRefund} red />
         <Card
           title="Net Balance"

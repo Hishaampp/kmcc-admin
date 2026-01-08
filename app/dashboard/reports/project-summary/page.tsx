@@ -79,13 +79,16 @@ export default function ProjectSummaryPage() {
   });
 
   /* ================= QUIT MEMBERS ================= */
-  const quitMemberIds = members
-    .filter(m => m.status === "quit")
-    .map(m => m.id);
+ const quitRefunds = filteredPayments.filter(p => {
+  const member = members.find(m => m.id === p.memberId);
+  if (!member) return false;
 
-  const quitRefunds = filteredPayments.filter(p =>
-    quitMemberIds.includes(p.memberId)
+  return (
+    member.status === "quit" &&
+    member.quitProjectId === p.projectId
   );
+});
+
 
   /* ================= GROUP ================= */
   const groupBy = (key: "unitId" | "memberId" | "projectId") => {

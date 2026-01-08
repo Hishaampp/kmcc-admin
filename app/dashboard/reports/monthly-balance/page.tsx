@@ -60,16 +60,18 @@ export default function MonthlyBalanceReport() {
   const otherIncome = otherPayments.filter(match);
   const profitIncome = profits.filter(match);
 
-  /* ================= QUIT MEMBERS ================= */
-  const quitMemberIds = members
-    .filter(m => m.status === "quit")
-    .map(m => m.id);
+  /* ================= ✅ CORRECT QUIT REFUND LOGIC ================= */
+  const quitRefunds = memberIncome.filter(p => {
+    const member = members.find(m => m.id === p.memberId);
+    if (!member) return false;
 
-  const quitRefunds = memberIncome.filter(
-    p => quitMemberIds.includes(p.memberId)
-  );
+    return (
+      member.status === "quit" &&
+      member.quitProjectId === p.projectId
+    );
+  });
 
-  /* ================= FORMAT ₹ ================= */
+  /* ================= FORMAT INR ================= */
   const f = (n:number) =>
     new Intl.NumberFormat("en-IN").format(Number(n || 0));
 
@@ -86,7 +88,7 @@ export default function MonthlyBalanceReport() {
     return Object.values(map);
   }, [memberIncome]);
 
-  /* ================= TOTALS ================= */
+  /* ================= TOTALS (MATCH SHARE DETAILS) ================= */
   const totalMemberIncome = memberIncome.reduce((s,p)=>s+Number(p.amount||0),0);
   const totalOtherIncome = otherIncome.reduce((s,p)=>s+Number(p.amount||0),0);
   const totalProfit = profitIncome.reduce((s,p)=>s+Number(p.amount||0),0);
@@ -108,7 +110,10 @@ export default function MonthlyBalanceReport() {
       {/* HEADER */}
       <div className="flex justify-between items-center mb-4 print:hidden">
         <h1 className="text-3xl font-bold">Monthly Balance Sheet</h1>
-        <button onClick={exportPDF} className="px-4 py-2 bg-green-600 text-white rounded-lg">
+        <button
+          onClick={exportPDF}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg"
+        >
           Export PDF
         </button>
       </div>
@@ -169,7 +174,12 @@ export default function MonthlyBalanceReport() {
           <Card title="Total Income" value={`₹${f(totalIncome)}`} green />
           <Card title="Total Expense" value={`₹${f(totalExpense)}`} red />
           <Card title="Quit Refund" value={`₹${f(totalQuitRefund)}`} red />
-          <Card title="Net Balance" value={`₹${f(balance)}`} green={balance>=0} red={balance<0} />
+          <Card
+            title="Net Balance"
+            value={`₹${f(balance)}`}
+            green={balance>=0}
+            red={balance<0}
+          />
         </div>
       )}
 
@@ -177,7 +187,7 @@ export default function MonthlyBalanceReport() {
       {view==="member" && <List title="Member Payments" data={memberIncome.map(p=>({name:p.memberName,total:p.amount}))} f={f} />}
       {view==="other" && <List title="Other Income" data={otherIncome.map(o=>({name:o.title,total:o.amount}))} f={f} />}
       {view==="profit" && <List title="Profit" data={profitIncome.map(p=>({name:p.title,total:p.amount}))} f={f} />}
-      {view==="quit" && <List title="Quit Member Refunds" data={quitRefunds.map(p=>({name:p.memberName,total:p.amount}))} f={f} red />}
+      {view==="quit" && <List title="Quit Refunds" data={quitRefunds.map(p=>({name:p.memberName,total:p.amount}))} f={f} red />}
       {view==="expense" && <List title="Expenses" data={expense.map(e=>({name:e.title,total:e.amount}))} f={f} red />}
 
       <style jsx global>{`

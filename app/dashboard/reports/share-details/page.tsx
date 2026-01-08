@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { toPng } from "html-to-image";
-import jsPDF from "jspdf";
 
 /* ================= FORMATTERS ================= */
 const money = (n: number) =>
@@ -16,6 +14,22 @@ const money2 = (n: number) =>
     maximumFractionDigits: 2,
   }).format(n || 0);
 
+type Row = {
+  projectName: string;
+  totalSharePayment: number;
+  other: number;
+  profit: number;
+  totalIncome: number;
+  expense: number;
+  quitRefund: number;
+  cashBalance: number;
+  assetValue: number;
+  investment: number;
+  totalProjectValue: number;
+  totalShare: number;
+  shareValue: number;
+};
+
 export default function ShareDetailsPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -25,12 +39,13 @@ export default function ShareDetailsPage() {
   const [investments, setInvestments] = useState<any[]>([]);
   const [profits, setProfits] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const [interestLedger, setInterestLedger] = useState<any[]>([]);
 
   /* ================= LOAD ================= */
   useEffect(() => {
     const load = async () => {
       const [
-        p, pay, exp, other, asset, invest, profit, mem
+        p, pay, exp, other, asset, invest, profit, mem, interest
       ] = await Promise.all([
         getDocs(collection(db, "projects")),
         getDocs(collection(db, "payments")),
@@ -40,6 +55,7 @@ export default function ShareDetailsPage() {
         getDocs(collection(db, "projectInvestments")),
         getDocs(collection(db, "projectProfits")),
         getDocs(collection(db, "members")),
+        getDocs(collection(db, "interestLedger")),
       ]);
 
       setProjects(p.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -50,12 +66,13 @@ export default function ShareDetailsPage() {
       setInvestments(invest.docs.map(d => ({ id: d.id, ...d.data() })));
       setProfits(profit.docs.map(d => ({ id: d.id, ...d.data() })));
       setMembers(mem.docs.map(d => ({ id: d.id, ...d.data() })));
+      setInterestLedger(interest.docs.map(d => ({ id: d.id, ...d.data() })));
     };
     load();
   }, []);
 
-  /* ================= ROWS ================= */
-  const rows = useMemo(() => {
+  /* ================= SHARE DETAILS ROWS ================= */
+  const rows: Row[] = useMemo(() => {
     return projects.map(project => {
       const projectPayments = payments.filter(p => p.projectId === project.id);
 
@@ -91,20 +108,11 @@ export default function ShareDetailsPage() {
         .filter(i => i.projectId === project.id)
         .reduce((s, i) => s + Number(i.amount || 0), 0);
 
-      const totalIncome =
-        totalSharePayment + other + profit;
-
-      const cashBalance =
-        totalIncome - expense - quitRefund;
-
-      const totalProjectValue =
-        cashBalance + assetValue + investment;
-
-      const totalShare =
-        (totalSharePayment - quitRefund) / 1000;
-
-      const currentShareValue =
-        totalShare > 0 ? totalProjectValue / totalShare : 0;
+      const totalIncome = totalSharePayment + other + profit;
+      const cashBalance = totalIncome - expense - quitRefund;
+      const totalProjectValue = cashBalance + assetValue + investment;
+      const totalShare = (totalSharePayment - quitRefund) / 1000;
+      const shareValue = totalShare > 0 ? totalProjectValue / totalShare : 0;
 
       return {
         projectName: project.name,
@@ -119,15 +127,15 @@ export default function ShareDetailsPage() {
         investment,
         totalProjectValue,
         totalShare,
-        currentShareValue,
+        shareValue,
       };
     });
   }, [projects, payments, expenses, otherIncome, assets, investments, profits, members]);
 
-  /* ================= ⭐ GRAND TOTALS ================= */
+  /* ================= COLUMN TOTALS ================= */
   const totals = useMemo(() => {
-    const sum = (key: keyof typeof rows[0]) =>
-      rows.reduce((s, r) => s + Number(r[key] || 0), 0);
+    const sum = (k: keyof Row) =>
+      rows.reduce((s, r) => s + Number(r[k] || 0), 0);
 
     const totalShares = sum("totalShare");
     const totalProjectValue = sum("totalProjectValue");
@@ -144,47 +152,30 @@ export default function ShareDetailsPage() {
       investment: sum("investment"),
       totalProjectValue,
       totalShare: totalShares,
-      shareValue:
-        totalShares > 0 ? totalProjectValue / totalShares : 0,
+      shareValue: totalShares > 0 ? totalProjectValue / totalShares : 0,
     };
   }, [rows]);
 
-  /* ================= PDF EXPORT ================= */
-  const exportPDF = async () => {
-    const element = document.getElementById("pdf-content");
-    if (!element) return alert("PDF content not found");
+  /* ================= INTEREST TOTALS ================= */
+  const interestIncome = interestLedger
+    .filter(i => i.type === "income")
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
 
-    const dataUrl = await toPng(element, { backgroundColor: "#fff", pixelRatio: 2 });
+  const interestExpense = interestLedger
+    .filter(i => i.type === "expense")
+    .reduce((s, i) => s + Number(i.amount || 0), 0);
 
-    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
-
-    const img = new Image();
-    img.src = dataUrl;
-    await new Promise(res => (img.onload = res));
-
-    const pxToMm = (px:number)=>px*0.264583;
-    const w = pxToMm(img.width);
-    const h = pxToMm(img.height);
-
-    const pw = pdf.internal.pageSize.getWidth();
-    const ph = pdf.internal.pageSize.getHeight();
-
-    const scale = Math.min(pw / w, ph / h);
-    pdf.addImage(dataUrl,"PNG",(pw-w*scale)/2,(ph-h*scale)/2,w*scale,h*scale);
-    pdf.save("KMCC-Share-Details.pdf");
-  };
+  const interestBalance = interestIncome - interestExpense;
+  const finalBalance = totals.cashBalance + interestBalance;
 
   /* ================= RENDER ================= */
   return (
     <div className="min-h-screen bg-gray-100 p-8 text-black">
-      <div className="flex justify-between mb-6">
-        <h1 className="text-3xl font-bold">Share Details</h1>
-        <button onClick={exportPDF} className="px-5 py-2 bg-black text-white rounded">
-          Export PDF
-        </button>
-      </div>
 
-      <div id="pdf-content" className="bg-white p-8 rounded-xl border shadow">
+      {/* ================= SHARE DETAILS ================= */}
+      <div className="bg-white p-8 rounded-xl border shadow mb-10">
+        <h1 className="text-3xl font-bold mb-6">Share Details</h1>
+
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-200">
             <tr>
@@ -206,7 +197,7 @@ export default function ShareDetailsPage() {
                 <td className="border px-3 py-2">₹{money(r.totalSharePayment)}</td>
                 <td className="border px-3 py-2">₹{money(r.other)}</td>
                 <td className="border px-3 py-2 text-green-700">₹{money(r.profit)}</td>
-                <td className="border px-3 py-2 font-semibold">₹{money(r.totalIncome)}</td>
+                <td className="border px-3 py-2">₹{money(r.totalIncome)}</td>
                 <td className="border px-3 py-2 text-red-700">₹{money(r.expense)}</td>
                 <td className="border px-3 py-2 text-red-700">₹{money(r.quitRefund)}</td>
                 <td className="border px-3 py-2 font-semibold">₹{money(r.cashBalance)}</td>
@@ -215,17 +206,17 @@ export default function ShareDetailsPage() {
                 <td className="border px-3 py-2 font-bold">₹{money(r.totalProjectValue)}</td>
                 <td className="border px-3 py-2">{money2(r.totalShare)}</td>
                 <td className="border px-3 py-2 font-bold text-green-700">
-                  ₹{money2(r.currentShareValue)}
+                  ₹{money2(r.shareValue)}
                 </td>
               </tr>
             ))}
 
-            {/* ⭐ TOTAL ROW */}
+            {/* ===== TOTAL ROW ===== */}
             <tr className="bg-gray-300 font-bold">
               <td className="border px-3 py-2">TOTAL</td>
               <td className="border px-3 py-2">₹{money(totals.totalSharePayment)}</td>
               <td className="border px-3 py-2">₹{money(totals.other)}</td>
-              <td className="border px-3 py-2 text-green-700">₹{money(totals.profit)}</td>
+              <td className="border px-3 py-2">₹{money(totals.profit)}</td>
               <td className="border px-3 py-2">₹{money(totals.totalIncome)}</td>
               <td className="border px-3 py-2 text-red-700">₹{money(totals.expense)}</td>
               <td className="border px-3 py-2 text-red-700">₹{money(totals.quitRefund)}</td>
@@ -241,6 +232,33 @@ export default function ShareDetailsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* ================= INTEREST SUMMARY ================= */}
+      <div className="bg-white p-8 rounded-xl border shadow">
+        <h2 className="text-2xl font-bold mb-4">Interest Summary</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="border p-4 rounded">
+            <p className="text-sm">Interest Income</p>
+            <p className="text-xl font-bold text-green-700">₹{money(interestIncome)}</p>
+          </div>
+
+          <div className="border p-4 rounded">
+            <p className="text-sm">Interest Expense</p>
+            <p className="text-xl font-bold text-red-700">₹{money(interestExpense)}</p>
+          </div>
+
+          <div className="border p-4 rounded">
+            <p className="text-sm">Interest Balance</p>
+            <p className="text-xl font-bold">₹{money(interestBalance)}</p>
+          </div>
+        </div>
+
+        <div className="mt-6 text-2xl font-bold text-green-800">
+          GRAND TOTAL (Project Cash + Interest): ₹{money(finalBalance)}
+        </div>
+      </div>
+
     </div>
   );
 }
