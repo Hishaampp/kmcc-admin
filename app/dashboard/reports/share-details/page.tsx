@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
 
 /* ================= FORMATTERS ================= */
 const money = (n: number) =>
@@ -31,6 +34,8 @@ type Row = {
 };
 
 export default function ShareDetailsPage() {
+  const router = useRouter();
+
   const [projects, setProjects] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -168,97 +173,156 @@ export default function ShareDetailsPage() {
   const interestBalance = interestIncome - interestExpense;
   const finalBalance = totals.cashBalance + interestBalance;
 
+  /* ================= PDF EXPORT ================= */
+  const exportPDF = async () => {
+    const element = document.getElementById("pdf-content");
+    if (!element) return;
+
+    const dataUrl = await toPng(element, {
+      backgroundColor: "#ffffff",
+      pixelRatio: 2,
+    });
+
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a3",
+    });
+
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise(res => (img.onload = res));
+
+    const pxToMm = (px: number) => px * 0.264583;
+    const w = pxToMm(img.width);
+    const h = pxToMm(img.height);
+
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+
+    const scale = Math.min(pw / w, ph / h);
+    pdf.addImage(
+      dataUrl,
+      "PNG",
+      (pw - w * scale) / 2,
+      (ph - h * scale) / 2,
+      w * scale,
+      h * scale
+    );
+
+    pdf.save("KMCC-Share-Details.pdf");
+  };
+
   /* ================= RENDER ================= */
   return (
     <div className="min-h-screen bg-gray-100 p-8 text-black">
 
-      {/* ================= SHARE DETAILS ================= */}
-      <div className="bg-white p-8 rounded-xl border shadow mb-10">
-        <h1 className="text-3xl font-bold mb-6">Share Details</h1>
+      {/* ACTION BAR */}
+      <div className="flex justify-between items-center mb-6">
+        <button
+          onClick={() => router.back()}
+          className="px-4 py-2 bg-black text-white rounded"
+        >
+          ← Back
+        </button>
 
-        <table className="w-full border-collapse text-sm">
-          <thead className="bg-gray-200">
-            <tr>
-              {[
-                "Project","Share Payment","Other Income","Profit","Total Income",
-                "Expense","Quit Refund","Cash Balance",
-                "Asset","Investment","Total Project Value",
-                "Total Shares","Share Value"
-              ].map(h=>(
-                <th key={h} className="border px-3 py-2">{h}</th>
+        <button
+          onClick={exportPDF}
+          className="px-4 py-2 bg-green-600 text-white rounded"
+        >
+          Export PDF
+        </button>
+      </div>
+
+      <div id="pdf-content">
+
+        {/* ================= SHARE DETAILS ================= */}
+        <div className="bg-white p-8 rounded-xl border shadow mb-10">
+          <h1 className="text-3xl font-bold mb-6">Share Details</h1>
+
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-gray-200">
+              <tr>
+                {[
+                  "Project","Share Payment","Other Income","Profit","Total Income",
+                  "Expense","Quit Refund","Cash Balance",
+                  "Asset","Investment","Total Project Value",
+                  "Total Shares","Share Value"
+                ].map(h=>(
+                  <th key={h} className="border px-3 py-2">{h}</th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {rows.map((r,i)=>(
+                <tr key={i}>
+                  <td className="border px-3 py-2">{r.projectName}</td>
+                  <td className="border px-3 py-2">₹{money(r.totalSharePayment)}</td>
+                  <td className="border px-3 py-2">₹{money(r.other)}</td>
+                  <td className="border px-3 py-2 text-green-700">₹{money(r.profit)}</td>
+                  <td className="border px-3 py-2">₹{money(r.totalIncome)}</td>
+                  <td className="border px-3 py-2 text-red-700">₹{money(r.expense)}</td>
+                  <td className="border px-3 py-2 text-red-700">₹{money(r.quitRefund)}</td>
+                  <td className="border px-3 py-2 font-semibold">₹{money(r.cashBalance)}</td>
+                  <td className="border px-3 py-2">₹{money(r.assetValue)}</td>
+                  <td className="border px-3 py-2">₹{money(r.investment)}</td>
+                  <td className="border px-3 py-2 font-bold">₹{money(r.totalProjectValue)}</td>
+                  <td className="border px-3 py-2">{money2(r.totalShare)}</td>
+                  <td className="border px-3 py-2 font-bold text-green-700">
+                    ₹{money2(r.shareValue)}
+                  </td>
+                </tr>
               ))}
-            </tr>
-          </thead>
 
-          <tbody>
-            {rows.map((r,i)=>(
-              <tr key={i}>
-                <td className="border px-3 py-2">{r.projectName}</td>
-                <td className="border px-3 py-2">₹{money(r.totalSharePayment)}</td>
-                <td className="border px-3 py-2">₹{money(r.other)}</td>
-                <td className="border px-3 py-2 text-green-700">₹{money(r.profit)}</td>
-                <td className="border px-3 py-2">₹{money(r.totalIncome)}</td>
-                <td className="border px-3 py-2 text-red-700">₹{money(r.expense)}</td>
-                <td className="border px-3 py-2 text-red-700">₹{money(r.quitRefund)}</td>
-                <td className="border px-3 py-2 font-semibold">₹{money(r.cashBalance)}</td>
-                <td className="border px-3 py-2">₹{money(r.assetValue)}</td>
-                <td className="border px-3 py-2">₹{money(r.investment)}</td>
-                <td className="border px-3 py-2 font-bold">₹{money(r.totalProjectValue)}</td>
-                <td className="border px-3 py-2">{money2(r.totalShare)}</td>
-                <td className="border px-3 py-2 font-bold text-green-700">
-                  ₹{money2(r.shareValue)}
+              <tr className="bg-gray-300 font-bold">
+                <td className="border px-3 py-2">TOTAL</td>
+                <td className="border px-3 py-2">₹{money(totals.totalSharePayment)}</td>
+                <td className="border px-3 py-2">₹{money(totals.other)}</td>
+                <td className="border px-3 py-2">₹{money(totals.profit)}</td>
+                <td className="border px-3 py-2">₹{money(totals.totalIncome)}</td>
+                <td className="border px-3 py-2 text-red-700">₹{money(totals.expense)}</td>
+                <td className="border px-3 py-2 text-red-700">₹{money(totals.quitRefund)}</td>
+                <td className="border px-3 py-2">₹{money(totals.cashBalance)}</td>
+                <td className="border px-3 py-2">₹{money(totals.assetValue)}</td>
+                <td className="border px-3 py-2">₹{money(totals.investment)}</td>
+                <td className="border px-3 py-2">₹{money(totals.totalProjectValue)}</td>
+                <td className="border px-3 py-2">{money2(totals.totalShare)}</td>
+                <td className="border px-3 py-2 text-green-700">
+                  ₹{money2(totals.shareValue)}
                 </td>
               </tr>
-            ))}
+            </tbody>
+          </table>
+        </div>
 
-            {/* ===== TOTAL ROW ===== */}
-            <tr className="bg-gray-300 font-bold">
-              <td className="border px-3 py-2">TOTAL</td>
-              <td className="border px-3 py-2">₹{money(totals.totalSharePayment)}</td>
-              <td className="border px-3 py-2">₹{money(totals.other)}</td>
-              <td className="border px-3 py-2">₹{money(totals.profit)}</td>
-              <td className="border px-3 py-2">₹{money(totals.totalIncome)}</td>
-              <td className="border px-3 py-2 text-red-700">₹{money(totals.expense)}</td>
-              <td className="border px-3 py-2 text-red-700">₹{money(totals.quitRefund)}</td>
-              <td className="border px-3 py-2">₹{money(totals.cashBalance)}</td>
-              <td className="border px-3 py-2">₹{money(totals.assetValue)}</td>
-              <td className="border px-3 py-2">₹{money(totals.investment)}</td>
-              <td className="border px-3 py-2">₹{money(totals.totalProjectValue)}</td>
-              <td className="border px-3 py-2">{money2(totals.totalShare)}</td>
-              <td className="border px-3 py-2 text-green-700">
-                ₹{money2(totals.shareValue)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        {/* ================= INTEREST SUMMARY ================= */}
+        <div className="bg-white p-8 rounded-xl border shadow">
+          <h2 className="text-2xl font-bold mb-4">Interest Summary</h2>
 
-      {/* ================= INTEREST SUMMARY ================= */}
-      <div className="bg-white p-8 rounded-xl border shadow">
-        <h2 className="text-2xl font-bold mb-4">Interest Summary</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border p-4 rounded">
+              <p className="text-sm">Interest Income</p>
+              <p className="text-xl font-bold text-green-700">₹{money(interestIncome)}</p>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="border p-4 rounded">
-            <p className="text-sm">Interest Income</p>
-            <p className="text-xl font-bold text-green-700">₹{money(interestIncome)}</p>
+            <div className="border p-4 rounded">
+              <p className="text-sm">Interest Expense</p>
+              <p className="text-xl font-bold text-red-700">₹{money(interestExpense)}</p>
+            </div>
+
+            <div className="border p-4 rounded">
+              <p className="text-sm">Interest Balance</p>
+              <p className="text-xl font-bold">₹{money(interestBalance)}</p>
+            </div>
           </div>
 
-          <div className="border p-4 rounded">
-            <p className="text-sm">Interest Expense</p>
-            <p className="text-xl font-bold text-red-700">₹{money(interestExpense)}</p>
-          </div>
-
-          <div className="border p-4 rounded">
-            <p className="text-sm">Interest Balance</p>
-            <p className="text-xl font-bold">₹{money(interestBalance)}</p>
+          <div className="mt-6 text-2xl font-bold text-green-800">
+            TOTAL CASH BALANCE (Project + Interest): ₹{money(finalBalance)}
           </div>
         </div>
 
-        <div className="mt-6 text-2xl font-bold text-green-800">
-          GRAND TOTAL (Project Cash + Interest): ₹{money(finalBalance)}
-        </div>
       </div>
-
     </div>
   );
 }

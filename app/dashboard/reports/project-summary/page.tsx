@@ -78,19 +78,16 @@ export default function ProjectSummaryPage() {
     return true;
   });
 
-  /* ================= QUIT MEMBERS ================= */
- const quitRefunds = filteredPayments.filter(p => {
-  const member = members.find(m => m.id === p.memberId);
-  if (!member) return false;
+  /* ================= QUIT REFUNDS ================= */
+  const quitRefunds = filteredPayments.filter(p => {
+    const member = members.find(m => m.id === p.memberId);
+    return (
+      member?.status === "quit" &&
+      member.quitProjectId === p.projectId
+    );
+  });
 
-  return (
-    member.status === "quit" &&
-    member.quitProjectId === p.projectId
-  );
-});
-
-
-  /* ================= GROUP ================= */
+  /* ================= GROUPING ================= */
   const groupBy = (key: "unitId" | "memberId" | "projectId") => {
     const map: any = {};
     filteredPayments.forEach(p => {
@@ -122,10 +119,13 @@ export default function ProjectSummaryPage() {
   const totalExpense = filteredExpenses.reduce((s,e)=>s+Number(e.amount||0),0);
   const totalQuitRefund = quitRefunds.reduce((s,p)=>s+Number(p.amount||0),0);
 
-  const totalIncome = totalMemberIncome + totalOtherIncome + totalProfit;
-  const balance = totalIncome - totalExpense - totalQuitRefund;
+  const totalIncome =
+    totalMemberIncome + totalOtherIncome + totalProfit;
 
-  /* ================= PDF ================= */
+  const balance =
+    totalIncome - totalExpense - totalQuitRefund;
+
+  /* ================= PRINT ================= */
   const exportPDF = () => window.print();
 
   return (
@@ -169,11 +169,12 @@ export default function ProjectSummaryPage() {
         </select>
       </div>
 
-      {/* SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      {/* SUMMARY (✅ EXPENSE ADDED) */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
         <Summary title="Member Income" value={totalMemberIncome} />
         <Summary title="Other Income" value={totalOtherIncome} />
         <Summary title="Profit" value={totalProfit} green />
+        <Summary title="Expense" value={totalExpense} red />
         <Summary title="Quit Refund" value={totalQuitRefund} red />
         <Summary title="Net Balance" value={balance} green={balance>=0} red={balance<0} />
       </div>
@@ -189,7 +190,6 @@ export default function ProjectSummaryPage() {
       <Section title="Quit Member Refunds" data={quitRefunds.map(p=>({name:p.memberName,total:p.amount}))} formatINR={formatINR} />
       <Section title="Expense Records" data={filteredExpenses.map(e=>({name:e.title,total:e.amount}))} formatINR={formatINR} />
 
-      {/* PRINT */}
       <style jsx global>{`
         @media print {
           body { background: white; }
