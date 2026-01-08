@@ -54,7 +54,7 @@ export default function ShareDetailsPage() {
     load();
   }, []);
 
-  /* ================= CALCULATIONS ================= */
+  /* ================= ROWS ================= */
   const rows = useMemo(() => {
     return projects.map(project => {
       const projectPayments = payments.filter(p => p.projectId === project.id);
@@ -91,7 +91,6 @@ export default function ShareDetailsPage() {
         .filter(i => i.projectId === project.id)
         .reduce((s, i) => s + Number(i.amount || 0), 0);
 
-      /* ✅ FINAL BUSINESS LOGIC */
       const totalIncome =
         totalSharePayment + other + profit;
 
@@ -125,6 +124,31 @@ export default function ShareDetailsPage() {
     });
   }, [projects, payments, expenses, otherIncome, assets, investments, profits, members]);
 
+  /* ================= ⭐ GRAND TOTALS ================= */
+  const totals = useMemo(() => {
+    const sum = (key: keyof typeof rows[0]) =>
+      rows.reduce((s, r) => s + Number(r[key] || 0), 0);
+
+    const totalShares = sum("totalShare");
+    const totalProjectValue = sum("totalProjectValue");
+
+    return {
+      totalSharePayment: sum("totalSharePayment"),
+      other: sum("other"),
+      profit: sum("profit"),
+      totalIncome: sum("totalIncome"),
+      expense: sum("expense"),
+      quitRefund: sum("quitRefund"),
+      cashBalance: sum("cashBalance"),
+      assetValue: sum("assetValue"),
+      investment: sum("investment"),
+      totalProjectValue,
+      totalShare: totalShares,
+      shareValue:
+        totalShares > 0 ? totalProjectValue / totalShares : 0,
+    };
+  }, [rows]);
+
   /* ================= PDF EXPORT ================= */
   const exportPDF = async () => {
     const element = document.getElementById("pdf-content");
@@ -146,10 +170,7 @@ export default function ShareDetailsPage() {
     const ph = pdf.internal.pageSize.getHeight();
 
     const scale = Math.min(pw / w, ph / h);
-    const fw = w * scale;
-    const fh = h * scale;
-
-    pdf.addImage(dataUrl,"PNG",(pw-fw)/2,(ph-fh)/2,fw,fh);
+    pdf.addImage(dataUrl,"PNG",(pw-w*scale)/2,(ph-h*scale)/2,w*scale,h*scale);
     pdf.save("KMCC-Share-Details.pdf");
   };
 
@@ -164,10 +185,6 @@ export default function ShareDetailsPage() {
       </div>
 
       <div id="pdf-content" className="bg-white p-8 rounded-xl border shadow">
-        <h2 className="text-center text-2xl font-bold mb-4">
-          KMCC – Project Share Report
-        </h2>
-
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-200">
             <tr>
@@ -177,10 +194,11 @@ export default function ShareDetailsPage() {
                 "Asset","Investment","Total Project Value",
                 "Total Shares","Share Value"
               ].map(h=>(
-                <th key={h} className="border px-3 py-2 text-left">{h}</th>
+                <th key={h} className="border px-3 py-2">{h}</th>
               ))}
             </tr>
           </thead>
+
           <tbody>
             {rows.map((r,i)=>(
               <tr key={i}>
@@ -201,6 +219,25 @@ export default function ShareDetailsPage() {
                 </td>
               </tr>
             ))}
+
+            {/* ⭐ TOTAL ROW */}
+            <tr className="bg-gray-300 font-bold">
+              <td className="border px-3 py-2">TOTAL</td>
+              <td className="border px-3 py-2">₹{money(totals.totalSharePayment)}</td>
+              <td className="border px-3 py-2">₹{money(totals.other)}</td>
+              <td className="border px-3 py-2 text-green-700">₹{money(totals.profit)}</td>
+              <td className="border px-3 py-2">₹{money(totals.totalIncome)}</td>
+              <td className="border px-3 py-2 text-red-700">₹{money(totals.expense)}</td>
+              <td className="border px-3 py-2 text-red-700">₹{money(totals.quitRefund)}</td>
+              <td className="border px-3 py-2">₹{money(totals.cashBalance)}</td>
+              <td className="border px-3 py-2">₹{money(totals.assetValue)}</td>
+              <td className="border px-3 py-2">₹{money(totals.investment)}</td>
+              <td className="border px-3 py-2">₹{money(totals.totalProjectValue)}</td>
+              <td className="border px-3 py-2">{money2(totals.totalShare)}</td>
+              <td className="border px-3 py-2 text-green-700">
+                ₹{money2(totals.shareValue)}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
