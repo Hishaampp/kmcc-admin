@@ -258,18 +258,18 @@ export default function ShareDetailsPage() {
               {rows.map((r,i)=>(
                 <tr key={i}>
                   <td className="border px-3 py-2">{r.projectName}</td>
-                  <td className="border px-3 py-2">₹{money(r.totalSharePayment)}</td>
-                  <td className="border px-3 py-2">₹{money(r.other)}</td>
-                  <td className="border px-3 py-2 text-green-700">₹{money(r.profit)}</td>
-                  <td className="border px-3 py-2">₹{money(r.totalIncome)}</td>
-                  <td className="border px-3 py-2 text-red-700">₹{money(r.expense)}</td>
-                  <td className="border px-3 py-2 text-red-700">₹{money(r.quitRefund)}</td>
-                  <td className="border px-3 py-2 font-semibold">₹{money(r.cashBalance)}</td>
-                  <td className="border px-3 py-2">₹{money(r.assetValue)}</td>
-                  <td className="border px-3 py-2">₹{money(r.investment)}</td>
-                  <td className="border px-3 py-2 font-bold">₹{money(r.totalProjectValue)}</td>
-                  <td className="border px-3 py-2">{money2(r.totalShare)}</td>
-                  <td className="border px-3 py-2 font-bold text-green-700">
+                  <td className="border px-3 py-2 text-right">₹{money(r.totalSharePayment)}</td>
+                  <td className="border px-3 py-2 text-right">₹{money(r.other)}</td>
+                  <td className="border px-3 py-2 text-right text-green-700">₹{money(r.profit)}</td>
+                  <td className="border px-3 py-2 text-right">₹{money(r.totalIncome)}</td>
+                  <td className="border px-3 py-2 text-right text-red-700">₹{money(r.expense)}</td>
+                  <td className="border px-3 py-2 text-right text-red-700">₹{money(r.quitRefund)}</td>
+                  <td className="border px-3 py-2 text-right font-semibold">₹{money(r.cashBalance)}</td>
+                  <td className="border px-3 py-2 text-right">₹{money(r.assetValue)}</td>
+                  <td className="border px-3 py-2 text-right">₹{money(r.investment)}</td>
+                  <td className="border px-3 py-2 text-right font-bold">₹{money(r.totalProjectValue)}</td>
+                  <td className="border px-3 py-2 text-right">{money2(r.totalShare)}</td>
+                  <td className="border px-3 py-2 text-right font-bold text-green-700">
                     ₹{money2(r.shareValue)}
                   </td>
                 </tr>
@@ -277,18 +277,18 @@ export default function ShareDetailsPage() {
 
               <tr className="bg-gray-300 font-bold">
                 <td className="border px-3 py-2">TOTAL</td>
-                <td className="border px-3 py-2">₹{money(totals.totalSharePayment)}</td>
-                <td className="border px-3 py-2">₹{money(totals.other)}</td>
-                <td className="border px-3 py-2">₹{money(totals.profit)}</td>
-                <td className="border px-3 py-2">₹{money(totals.totalIncome)}</td>
-                <td className="border px-3 py-2 text-red-700">₹{money(totals.expense)}</td>
-                <td className="border px-3 py-2 text-red-700">₹{money(totals.quitRefund)}</td>
-                <td className="border px-3 py-2">₹{money(totals.cashBalance)}</td>
-                <td className="border px-3 py-2">₹{money(totals.assetValue)}</td>
-                <td className="border px-3 py-2">₹{money(totals.investment)}</td>
-                <td className="border px-3 py-2">₹{money(totals.totalProjectValue)}</td>
-                <td className="border px-3 py-2">{money2(totals.totalShare)}</td>
-                <td className="border px-3 py-2 text-green-700">
+                <td className="border px-3 py-2 text-right">₹{money(totals.totalSharePayment)}</td>
+                <td className="border px-3 py-2 text-right">₹{money(totals.other)}</td>
+                <td className="border px-3 py-2 text-right">₹{money(totals.profit)}</td>
+                <td className="border px-3 py-2 text-right">₹{money(totals.totalIncome)}</td>
+                <td className="border px-3 py-2 text-right text-red-700">₹{money(totals.expense)}</td>
+                <td className="border px-3 py-2 text-right text-red-700">₹{money(totals.quitRefund)}</td>
+                <td className="border px-3 py-2 text-right">₹{money(totals.cashBalance)}</td>
+                <td className="border px-3 py-2 text-right">₹{money(totals.assetValue)}</td>
+                <td className="border px-3 py-2 text-right">₹{money(totals.investment)}</td>
+                <td className="border px-3 py-2 text-right">₹{money(totals.totalProjectValue)}</td>
+                <td className="border px-3 py-2 text-right">{money2(totals.totalShare)}</td>
+                <td className="border px-3 py-2 text-right text-green-700">
                   ₹{money2(totals.shareValue)}
                 </td>
               </tr>

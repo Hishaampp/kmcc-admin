@@ -18,6 +18,10 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [name, setName] = useState("");
 
+  // Edit
+  const [showEditBox, setShowEditBox] = useState(false);
+  const [editProject, setEditProject] = useState<any>(null);
+
   const fetchProjects = async () => {
     const snap = await getDocs(collection(db, "projects"));
     setProjects(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
@@ -45,6 +49,18 @@ export default function ProjectsPage() {
       status: newStatus,
     });
 
+    fetchProjects();
+  };
+
+  // SAVE EDIT
+  const saveEdit = async () => {
+    if (!editProject || !editProject.name.trim()) return;
+
+    await updateDoc(doc(db, "projects", editProject.id), {
+      name: editProject.name,
+    });
+
+    setShowEditBox(false);
     fetchProjects();
   };
 
@@ -96,19 +112,12 @@ export default function ProjectsPage() {
               key={p.id}
               className="p-3 border rounded-lg bg-gray-50 flex justify-between items-center"
             >
-              <span className="font-medium text-gray-900">{p.name}</span>
+              <div>
+                <p className="font-medium text-gray-900">{p.name}</p>
+                <p className="text-xs text-gray-600">Status: {p.status}</p>
+              </div>
 
               <div className="flex items-center gap-3">
-
-                <span
-                  className={`px-3 py-1 rounded text-sm font-medium ${
-                    p.status === "active"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {p.status}
-                </span>
 
                 <select
                   value={p.status}
@@ -119,11 +128,61 @@ export default function ProjectsPage() {
                   <option value="inactive">Inactive</option>
                 </select>
 
+                <button
+                  onClick={() => {
+                    setEditProject({ ...p });
+                    setShowEditBox(true);
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white rounded"
+                >
+                  Edit
+                </button>
+
               </div>
             </li>
           ))}
         </ul>
       </div>
+
+      {/* EDIT MODAL */}
+      {showEditBox && editProject && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-6 rounded-xl w-[360px]">
+
+            <h2 className="text-lg font-semibold mb-3 text-gray-900">
+              Edit Project Name
+            </h2>
+
+            <label className="text-sm text-gray-700">
+              Project Name
+            </label>
+
+            <input
+              value={editProject.name}
+              onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
+              className="border rounded px-3 py-2 w-full text-black mb-4"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowEditBox(false)}
+                className="px-3 py-1 border rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={saveEdit}
+                className="px-3 py-1 bg-blue-600 text-white rounded"
+              >
+                Save
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
