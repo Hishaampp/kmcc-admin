@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+
 
 export default function Dashboard() {
   const logout = async () => {
@@ -23,12 +25,8 @@ export default function Dashboard() {
       href={href}
       className="block p-6 bg-white rounded-xl border shadow-sm hover:bg-gray-50 hover:shadow-md transition"
     >
-      <h3 className="text-lg font-semibold text-gray-900">
-        {title}
-      </h3>
-      <p className="text-gray-700 mt-1 text-sm">
-        {description}
-      </p>
+      <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+      <p className="text-gray-700 mt-1 text-sm">{description}</p>
     </Link>
   );
 
@@ -37,9 +35,21 @@ export default function Dashboard() {
 
       {/* ================= TOP BAR ================= */}
       <div className="w-full bg-white border-b shadow-sm flex justify-between items-center px-6 py-3">
-        <h1 className="text-lg font-semibold text-gray-800">
-          KMCC Admin Panel
-        </h1>
+
+        {/* LOGO + TITLE */}
+        <div className="flex items-center gap-3">
+    <Image
+  src="/KMCC.jpeg"
+  alt="KMCC Logo"
+  width={140}
+  height={40}
+  priority
+/>
+
+          <h1 className="text-lg font-semibold text-gray-800">
+            Global KMCC Investment Fund
+          </h1>
+        </div>
 
         <button
           onClick={logout}
@@ -147,6 +157,14 @@ export default function Dashboard() {
           />
         </Section>
 
+        {/* ================= DOCUMENTS ================= */}
+        <Section title="Documents & Files">
+          <Card
+            href="/dashboard/documents"
+            title="Documents Vault"
+            description="Upload, view and manage important documents."
+          />
+        </Section>
 
       </div>
     </div>
@@ -164,9 +182,7 @@ function Section({
 }) {
   return (
     <div className="mb-10">
-      <h3 className="text-xl font-bold text-gray-800 mb-4">
-        {title}
-      </h3>
+      <h3 className="text-xl font-bold text-gray-800 mb-4">{title}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {children}
       </div>
