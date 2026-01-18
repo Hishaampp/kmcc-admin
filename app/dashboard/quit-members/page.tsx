@@ -12,17 +12,20 @@ import {
 
 /* ================= TYPES ================= */
 
+type QuitProject = {
+  projectId: string;
+  projectName: string;
+  quitNote?: string;
+  quitDate?: any;
+};
+
 type Member = {
   id: string;
   name: string;
   number: string;
   unitName: string;
   unitId?: string;
-  status: string;
-  quitProjectId?: string;
-  quitProjectName?: string;
-  quitNote?: string;
-  quitDate?: any;
+  quitProjects?: QuitProject[];
 };
 
 type Payment = {
@@ -43,9 +46,11 @@ type Payment = {
 export default function QuitMembersPage() {
   const router = useRouter();
 
-  const [quitMembers, setQuitMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedProject, setSelectedProject] = useState<QuitProject | null>(null);
 
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [amount, setAmount] = useState("");
@@ -65,13 +70,13 @@ export default function QuitMembersPage() {
 
   /* ================= LOAD DATA ================= */
 
-  const fetchQuitMembers = async () => {
+  const fetchMembers = async () => {
     const snap = await getDocs(collection(db, "members"));
     const data: Member[] = snap.docs
       .map(d => ({ id: d.id, ...(d.data() as any) }))
-      .filter(m => m.status === "quit");
+      .filter(m => m.quitProjects && m.quitProjects.length > 0);
 
-    setQuitMembers(data);
+    setMembers(data);
   };
 
   const fetchPayments = async () => {
@@ -84,32 +89,29 @@ export default function QuitMembersPage() {
   };
 
   useEffect(() => {
-    fetchQuitMembers();
+    fetchMembers();
     fetchPayments();
   }, []);
 
-  /* ================= CORE FIX ================= */
-  const getMemberPayments = (member: Member) => {
-    if (!member.quitProjectId) return [];
+  /* ================= PAYMENT FILTER ================= */
 
+  const getPaymentsForQuit = (memberId: string, projectId: string) => {
     return payments.filter(
-      p =>
-        p.memberId === member.id &&
-        p.projectId === member.quitProjectId
+      p => p.memberId === memberId && p.projectId === projectId
     );
   };
 
   /* ================= ADD PAYMENT ================= */
 
   const addPayment = async () => {
-    if (!selectedMember || !month || !year || !amount) {
+    if (!selectedMember || !selectedProject || !month || !year || !amount) {
       alert("Please fill all fields");
       return;
     }
 
     await addDoc(collection(db, "payments"), {
-      projectId: selectedMember.quitProjectId || "",
-      projectName: selectedMember.quitProjectName || "Unknown",
+      projectId: selectedProject.projectId,
+      projectName: selectedProject.projectName,
       unitId: selectedMember.unitId || "",
       unitName: selectedMember.unitName,
       memberId: selectedMember.id,
@@ -140,103 +142,115 @@ export default function QuitMembersPage() {
         ← Back
       </button>
 
-      <h1 className="text-2xl font-bold mb-4 text-black">
+      <h1 className="text-2xl font-bold mb-4">
         Quit Members Report
       </h1>
 
       <div className="bg-white p-4 rounded-xl border shadow-sm">
-        {quitMembers.length === 0 && (
-          <p className="text-black">No quit members found.</p>
+
+        {members.length === 0 && (
+          <p>No quit members found.</p>
         )}
 
-        <ul className="space-y-2">
-          {quitMembers.map(m => {
-            const memberPayments = getMemberPayments(m);
-            const totalPaid = memberPayments.reduce(
-              (s, p) => s + Number(p.amount || 0),
-              0
-            );
+        <ul className="space-y-3">
+          {members.map(m =>
+            m.quitProjects!.map(qp => {
+              const memberPayments = getPaymentsForQuit(m.id, qp.projectId);
+              const totalPaid = memberPayments.reduce(
+                (s, p) => s + Number(p.amount || 0),
+                0
+              );
 
-            return (
-              <li key={m.id} className="p-3 border rounded bg-gray-50">
-                <div className="flex justify-between">
+              return (
+                <li
+                  key={`${m.id}-${qp.projectId}`}
+                  className="p-3 border rounded bg-gray-50"
+                >
+                  <div className="flex justify-between">
 
-                  <div>
-                    <p className="font-semibold text-black">
-                      {m.name} <span className="text-sm">#{m.number}</span>
-                    </p>
+                    <div>
+                      <p className="font-semibold">
+                        {m.name} <span className="text-sm">#{m.number}</span>
+                      </p>
 
-                    <p className="text-sm text-black">
-                      Unit: {m.unitName}
-                    </p>
+                      <p className="text-sm">
+                        Unit: {m.unitName}
+                      </p>
 
-                    <p className="text-sm font-medium text-black">
-                      Quit Project: {m.quitProjectName}
-                    </p>
+                      <p className="text-sm font-medium">
+                        Quit Project: {qp.projectName}
+                      </p>
 
-                    <p className="text-sm text-black">
-                      Quit Note: {m.quitNote || "—"}
-                    </p>
+                      <p className="text-sm">
+                        Quit Note: {qp.quitNote || "—"}
+                      </p>
 
-                    <p className="text-sm text-black">
-                      Quit Date:{" "}
-                      {m.quitDate?.toDate
-                        ? m.quitDate.toDate().toLocaleDateString()
-                        : "—"}
-                    </p>
+                      <p className="text-sm">
+                        Quit Date:{" "}
+                        {qp.quitDate?.toDate
+                          ? qp.quitDate.toDate().toLocaleDateString()
+                          : "—"}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="font-bold text-lg">
+                        ₹{totalPaid}
+                      </p>
+
+                      <button
+                        onClick={() => {
+                          setSelectedMember(m);
+                          setSelectedProject(qp);
+                        }}
+                        className="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm"
+                      >
+                        View Payments
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setSelectedMember(m);
+                          setSelectedProject(qp);
+                          setShowAddPayment(true);
+                        }}
+                        className="mt-3 px-3 py-1 bg-green-600 text-white rounded text-sm"
+                      >
+                        Add Payment
+                      </button>
+                    </div>
+
                   </div>
-
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-black">
-                      ₹{totalPaid}
-                    </p>
-
-                    <button
-                      onClick={() => setSelectedMember(m)}
-                      className="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm"
-                    >
-                      View Payments
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setSelectedMember(m);
-                        setShowAddPayment(true);
-                      }}
-                      className="mt-3 px-3 py-1 bg-green-600 text-white rounded text-sm"
-                    >
-                      Add Payment
-                    </button>
-                  </div>
-
-                </div>
-              </li>
-            );
-          })}
+                </li>
+              );
+            })
+          )}
         </ul>
       </div>
 
       {/* VIEW PAYMENTS MODAL */}
-      {selectedMember && !showAddPayment && (
+      {selectedMember && selectedProject && !showAddPayment && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl w-[400px] max-h-[80vh] overflow-y-auto text-black">
+          <div className="bg-white p-6 rounded-xl w-[400px] max-h-[80vh] overflow-y-auto">
 
-            <h2 className="font-semibold mb-3 text-black">
+            <h2 className="font-semibold mb-3">
               Payment History — {selectedMember.name}
             </h2>
 
-            {getMemberPayments(selectedMember).length === 0 && (
-              <p className="text-black">No payments found.</p>
-            )}
+            {getPaymentsForQuit(
+              selectedMember.id,
+              selectedProject.projectId
+            ).length === 0 && <p>No payments found.</p>}
 
             <ul className="space-y-2">
-              {getMemberPayments(selectedMember).map(p => (
+              {getPaymentsForQuit(
+                selectedMember.id,
+                selectedProject.projectId
+              ).map(p => (
                 <li key={p.id} className="p-2 border rounded bg-gray-50">
-                  <p className="font-medium text-black">
-                    ₹{p.amount}
-                  </p>
-                  <p className="text-sm text-black">
-                    {p.month} {p.year} — {p.projectName}
+                  <p className="font-medium">₹{p.amount}</p>
+                  <p className="text-sm">
+                    {p.month} {p.year}
                   </p>
                 </li>
               ))}
@@ -244,29 +258,33 @@ export default function QuitMembersPage() {
 
             <div className="text-right mt-4">
               <button
-                onClick={() => setSelectedMember(null)}
-                className="px-3 py-1 border rounded text-black"
+                onClick={() => {
+                  setSelectedMember(null);
+                  setSelectedProject(null);
+                }}
+                className="px-3 py-1 border rounded"
               >
                 Close
               </button>
             </div>
+
           </div>
         </div>
       )}
 
       {/* ADD PAYMENT MODAL */}
-      {showAddPayment && selectedMember && (
+      {showAddPayment && selectedMember && selectedProject && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl w-[380px] text-black">
+          <div className="bg-white p-6 rounded-xl w-[380px]">
 
-            <h2 className="font-semibold mb-3 text-black">
+            <h2 className="font-semibold mb-3">
               Add Payment — {selectedMember.name}
             </h2>
 
             <select
               value={month}
               onChange={e => setMonth(e.target.value)}
-              className="border rounded w-full px-3 py-2 mb-3 text-black"
+              className="border rounded w-full px-3 py-2 mb-3"
             >
               <option value="">Select Month</option>
               {MONTHS.map(m => <option key={m}>{m}</option>)}
@@ -275,7 +293,7 @@ export default function QuitMembersPage() {
             <select
               value={year}
               onChange={e => setYear(e.target.value)}
-              className="border rounded w-full px-3 py-2 mb-3 text-black"
+              className="border rounded w-full px-3 py-2 mb-3"
             >
               <option value="">Select Year</option>
               {YEARS.map(y => <option key={y}>{y}</option>)}
@@ -285,13 +303,13 @@ export default function QuitMembersPage() {
               value={amount}
               onChange={e => setAmount(e.target.value)}
               placeholder="Amount"
-              className="border rounded w-full px-3 py-2 mb-3 text-black"
+              className="border rounded w-full px-3 py-2 mb-3"
             />
 
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowAddPayment(false)}
-                className="px-3 py-1 border rounded text-black"
+                className="px-3 py-1 border rounded"
               >
                 Cancel
               </button>
