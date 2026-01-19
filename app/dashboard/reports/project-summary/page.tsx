@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 
@@ -78,14 +78,30 @@ export default function ProjectSummaryPage() {
     return true;
   });
 
-  /* ================= QUIT REFUNDS ================= */
-  const quitRefunds = filteredPayments.filter(p => {
-    const member = members.find(m => m.id === p.memberId);
-    return (
-      member?.status === "quit" &&
-      member.quitProjectId === p.projectId
-    );
-  });
+  /* ================= ✅ UPDATED QUIT REFUNDS LOGIC ================= */
+  const quitRefunds = useMemo(() => {
+    // If a specific project is selected
+    if (projectId) {
+      return filteredPayments.filter(p => {
+        const member = members.find(m => m.id === p.memberId);
+        if (!member) return false;
+
+        // Check if member has quit from THIS specific project
+        const quitProjects = member.quitProjects || [];
+        return quitProjects.includes(projectId);
+      });
+    }
+
+    // If no project selected (showing all projects)
+    return filteredPayments.filter(p => {
+      const member = members.find(m => m.id === p.memberId);
+      if (!member) return false;
+
+      // Check if member has quit from the payment's project
+      const quitProjects = member.quitProjects || [];
+      return quitProjects.includes(p.projectId);
+    });
+  }, [filteredPayments, members, projectId]);
 
   /* ================= GROUPING ================= */
   const groupBy = (key: "unitId" | "memberId" | "projectId") => {
@@ -169,7 +185,7 @@ export default function ProjectSummaryPage() {
         </select>
       </div>
 
-      {/* SUMMARY (✅ EXPENSE ADDED) */}
+      {/* SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
         <Summary title="Member Income" value={totalMemberIncome} />
         <Summary title="Other Income" value={totalOtherIncome} />
@@ -187,7 +203,40 @@ export default function ProjectSummaryPage() {
 
       <Section title="Other Project Income" data={filteredOtherIncome.map(o=>({name:o.title,total:o.amount}))} formatINR={formatINR} />
       <Section title="Profit Records" data={filteredProfit.map(p=>({name:p.title,total:p.amount}))} formatINR={formatINR} />
-      <Section title="Quit Member Refunds" data={quitRefunds.map(p=>({name:p.memberName,total:p.amount}))} formatINR={formatINR} />
+      
+      {/* ✅ ENHANCED QUIT REFUNDS SECTION */}
+      <div className="bg-white p-4 rounded-xl border shadow-sm mt-6">
+        <h2 className="text-lg font-semibold mb-3">Quit Member Refunds</h2>
+        {quitRefunds.length === 0 ? (
+          <p className="text-gray-600">No quit refunds found.</p>
+        ) : (
+          <ul className="space-y-2">
+            {quitRefunds.map((p:any, idx:number) => {
+              const member = members.find(m => m.id === p.memberId);
+              const quitProjectName = member?.quitHistory?.[p.projectId]?.projectName || p.projectName;
+              
+              return (
+                <li key={idx} className="p-3 border rounded bg-gray-50 flex justify-between">
+                  <div>
+                    <span className="font-medium">{p.memberName}</span>
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Quit from: {quitProjectName})
+                    </span>
+                  </div>
+                  <span className="font-bold text-red-700">₹{formatINR(p.amount)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex justify-between font-bold text-lg">
+            <span>Total Quit Refunds:</span>
+            <span className="text-red-700">₹{formatINR(totalQuitRefund)}</span>
+          </div>
+        </div>
+      </div>
+
       <Section title="Expense Records" data={filteredExpenses.map(e=>({name:e.title,total:e.amount}))} formatINR={formatINR} />
 
       <style jsx global>{`

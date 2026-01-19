@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import useExpenses from "@/app/dashboard/payments/hooks/use-expenses";
@@ -84,14 +84,37 @@ export default function YearlyPaymentsPage() {
   const yearlyOtherIncome = otherIncome.filter(filterMatch);
   const yearlyProfits = profits.filter(filterMatch);
 
-  /* ================= QUIT MEMBER REFUND ================= */
-  const quitMemberIds = members
-    .filter(m => m.status === "quit" && m.quitProjectId === projectId)
-    .map(m => m.id);
+  /* ================= ✅ UPDATED QUIT MEMBER REFUND LOGIC ================= */
+  const quitRefund = useMemo(() => {
+    if (!projectId) return 0;
 
-  const quitRefund = yearlyPayments
-    .filter(p => quitMemberIds.includes(p.memberId))
-    .reduce((s, p) => s + Number(p.amount || 0), 0);
+    // Find members who have quit from the selected project
+    const quitMemberIds = members
+      .filter(m => {
+        const quitProjects = m.quitProjects || [];
+        return quitProjects.includes(projectId);
+      })
+      .map(m => m.id);
+
+    // Calculate refund amount from yearly payments
+    return yearlyPayments
+      .filter(p => quitMemberIds.includes(p.memberId))
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+  }, [members, yearlyPayments, projectId]);
+
+  /* ================= QUIT REFUND DETAILS ================= */
+  const quitRefundDetails = useMemo(() => {
+    if (!projectId) return [];
+
+    const quitMemberIds = members
+      .filter(m => {
+        const quitProjects = m.quitProjects || [];
+        return quitProjects.includes(projectId);
+      })
+      .map(m => m.id);
+
+    return yearlyPayments.filter(p => quitMemberIds.includes(p.memberId));
+  }, [members, yearlyPayments, projectId]);
 
   /* ================= TOTALS ================= */
   const totalMemberIncome = yearlyPayments.reduce(
@@ -114,7 +137,6 @@ export default function YearlyPaymentsPage() {
     0
   );
 
-  /* ✅ SAME LOGIC AS SHARE DETAILS */
   const totalIncome =
     totalMemberIncome + totalOtherIncome + totalProfit;
 
@@ -173,7 +195,7 @@ export default function YearlyPaymentsPage() {
       </div>
 
       {/* SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
 
         <Card title="Member Income" value={totalMemberIncome} green />
         <Card title="Other Income" value={totalOtherIncome} green />
@@ -188,6 +210,69 @@ export default function YearlyPaymentsPage() {
         />
 
       </div>
+
+      {/* ✅ QUIT REFUND BREAKDOWN */}
+      {projectId && year && quitRefundDetails.length > 0 && (
+        <div className="bg-white p-5 rounded-xl border shadow-sm mt-6">
+          <h2 className="text-lg font-semibold mb-3 text-black">
+            Quit Member Refund Breakdown ({year})
+          </h2>
+          
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-orange-800">
+              ℹ️ These members have quit from the selected project. Their payments are being refunded.
+            </p>
+          </div>
+
+          <ul className="space-y-2">
+            {quitRefundDetails.map((p: any, idx: number) => {
+              const member = members.find(m => m.id === p.memberId);
+              const quitInfo = member?.quitHistory?.[projectId];
+
+              return (
+                <li
+                  key={idx}
+                  className="p-3 border rounded bg-gray-50 flex justify-between items-start"
+                >
+                  <div>
+                    <p className="font-semibold text-black">{p.memberName}</p>
+                    <p className="text-xs text-gray-600">
+                      Payment: {p.month} {p.year}
+                    </p>
+                    {quitInfo && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        Quit Reason: {quitInfo.note || "Not specified"}
+                      </p>
+                    )}
+                  </div>
+                  <span className="font-bold text-red-700">
+                    ₹{formatINR(p.amount)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex justify-between font-bold text-lg">
+              <span>Total Quit Refunds:</span>
+              <span className="text-red-700">₹{formatINR(quitRefund)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NO DATA MESSAGE */}
+      {projectId && year && quitRefundDetails.length === 0 && (
+        <div className="bg-white p-5 rounded-xl border shadow-sm mt-6">
+          <h2 className="text-lg font-semibold mb-3 text-black">
+            Quit Member Refund Breakdown ({year})
+          </h2>
+          <p className="text-gray-500 text-center py-4">
+            No quit member refunds found for the selected project and year.
+          </p>
+        </div>
+      )}
 
     </div>
   );

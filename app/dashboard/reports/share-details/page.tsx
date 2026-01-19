@@ -85,10 +85,16 @@ export default function ShareDetailsPage() {
         (s, p) => s + Number(p.amount || 0), 0
       );
 
+      /* ================= ✅ UPDATED QUIT REFUND LOGIC ================= */
+      // Find members who have quit from THIS specific project
       const quitMemberIds = members
-        .filter(m => m.status === "quit" && m.quitProjectId === project.id)
+        .filter(m => {
+          const quitProjects = m.quitProjects || [];
+          return quitProjects.includes(project.id);
+        })
         .map(m => m.id);
 
+      // Calculate refunds for quit members from THIS project only
       const quitRefund = projectPayments
         .filter(p => quitMemberIds.includes(p.memberId))
         .reduce((s, p) => s + Number(p.amount || 0), 0);

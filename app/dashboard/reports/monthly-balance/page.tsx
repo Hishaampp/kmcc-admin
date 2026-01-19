@@ -60,16 +60,29 @@ export default function MonthlyBalanceReport() {
   const otherIncome = otherPayments.filter(match);
   const profitIncome = profits.filter(match);
 
-  /* ================= ✅ CORRECT QUIT REFUND LOGIC ================= */
-  const quitRefunds = memberIncome.filter(p => {
-    const member = members.find(m => m.id === p.memberId);
-    if (!member) return false;
+  /* ================= ✅ UPDATED QUIT REFUND LOGIC ================= */
+  const quitRefunds = useMemo(() => {
+    // If a specific project is selected, filter by that project
+    if (projectId) {
+      return memberIncome.filter(p => {
+        const member = members.find(m => m.id === p.memberId);
+        if (!member) return false;
 
-    return (
-      member.status === "quit" &&
-      member.quitProjectId === p.projectId
-    );
-  });
+        // Check if member has quit from THIS specific project
+        const quitProjects = member.quitProjects || [];
+        return quitProjects.includes(projectId);
+      });
+    }
+
+    // If no project selected (showing all), check if member quit from the payment's project
+    return memberIncome.filter(p => {
+      const member = members.find(m => m.id === p.memberId);
+      if (!member) return false;
+
+      const quitProjects = member.quitProjects || [];
+      return quitProjects.includes(p.projectId);
+    });
+  }, [memberIncome, members, projectId]);
 
   /* ================= FORMAT INR ================= */
   const f = (n:number) =>
@@ -187,7 +200,41 @@ export default function MonthlyBalanceReport() {
       {view==="member" && <List title="Member Payments" data={memberIncome.map(p=>({name:p.memberName,total:p.amount}))} f={f} />}
       {view==="other" && <List title="Other Income" data={otherIncome.map(o=>({name:o.title,total:o.amount}))} f={f} />}
       {view==="profit" && <List title="Profit" data={profitIncome.map(p=>({name:p.title,total:p.amount}))} f={f} />}
-      {view==="quit" && <List title="Quit Refunds" data={quitRefunds.map(p=>({name:p.memberName,total:p.amount}))} f={f} red />}
+      {view==="quit" && (
+        <div className="bg-white p-5 rounded-xl border shadow mb-6">
+          <h2 className="text-lg font-semibold mb-3">Quit Refunds</h2>
+          {quitRefunds.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">No quit refunds found for selected filters</p>
+          ) : (
+            <ul className="divide-y">
+              {quitRefunds.map((p:any, idx:number) => {
+                const member = members.find(m => m.id === p.memberId);
+                const quitProjectName = member?.quitHistory?.[p.projectId]?.projectName || p.projectName;
+                
+                return (
+                  <li key={idx} className="py-2 flex justify-between">
+                    <div>
+                      <span className="font-medium">{p.memberName}</span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        (Quit from: {quitProjectName})
+                      </span>
+                    </div>
+                    <span className="font-bold text-red-700">
+                      ₹{f(p.amount)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex justify-between font-bold text-lg">
+              <span>Total Quit Refunds:</span>
+              <span className="text-red-700">₹{f(totalQuitRefund)}</span>
+            </div>
+          </div>
+        </div>
+      )}
       {view==="expense" && <List title="Expenses" data={expense.map(e=>({name:e.title,total:e.amount}))} f={f} red />}
 
       <style jsx global>{`
@@ -218,16 +265,20 @@ function List({ title, data, f, red }: any) {
   return (
     <div className="bg-white p-5 rounded-xl border shadow mb-6">
       <h2 className="text-lg font-semibold mb-3">{title}</h2>
-      <ul className="divide-y">
-        {data.map((i:any,idx:number)=>(
-          <li key={idx} className="py-2 flex justify-between">
-            <span>{i.name}</span>
-            <span className={`font-bold ${red?"text-red-700":"text-green-700"}`}>
-              ₹{f(i.total)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {data.length === 0 ? (
+        <p className="text-gray-500 text-center py-4">No data found for selected filters</p>
+      ) : (
+        <ul className="divide-y">
+          {data.map((i:any,idx:number)=>(
+            <li key={idx} className="py-2 flex justify-between">
+              <span>{i.name}</span>
+              <span className={`font-bold ${red?"text-red-700":"text-green-700"}`}>
+                ₹{f(i.total)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
