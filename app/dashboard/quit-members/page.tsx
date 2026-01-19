@@ -7,6 +7,8 @@ import {
   collection,
   getDocs,
   addDoc,
+  doc,
+  updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
 
@@ -19,10 +21,21 @@ type Member = {
   unitName: string;
   unitId?: string;
   status: string;
-  quitProjectId?: string;
-  quitProjectName?: string;
-  quitNote?: string;
-  quitDate?: any;
+  quitProjects?: string[];
+  quitHistory?: {
+    [projectId: string]: {
+      projectName: string;
+      note: string;
+      quitDate: any;
+    };
+  };
+};
+
+type QuitMemberEntry = Member & {
+  quitProjectId: string;
+  quitProjectName: string;
+  quitNote: string;
+  quitDate: any;
 };
 
 type Payment = {
@@ -43,14 +56,18 @@ type Payment = {
 export default function QuitMembersPage() {
   const router = useRouter();
 
-  const [quitMembers, setQuitMembers] = useState<Member[]>([]);
+  const [quitMembers, setQuitMembers] = useState<QuitMemberEntry[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMember, setSelectedMember] = useState<QuitMemberEntry | null>(null);
 
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [amount, setAmount] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
+
+  // NEW: Rejoin state
+  const [showRejoinBox, setShowRejoinBox] = useState(false);
+  const [rejoinMember, setRejoinMember] = useState<QuitMemberEntry | null>(null);
 
   const MONTHS = [
     "January","February","March","April","May","June",
@@ -67,11 +84,34 @@ export default function QuitMembersPage() {
 
   const fetchQuitMembers = async () => {
     const snap = await getDocs(collection(db, "members"));
-    const data: Member[] = snap.docs
-      .map(d => ({ id: d.id, ...(d.data() as any) }))
-      .filter(m => m.status === "quit");
+    const allMembers: Member[] = snap.docs.map(d => ({ 
+      id: d.id, 
+      ...(d.data() as any) 
+    }));
 
-    setQuitMembers(data);
+    // Create separate entries for each quit project
+    const quitData: QuitMemberEntry[] = [];
+    
+    allMembers.forEach(member => {
+      const quitProjects = member.quitProjects || [];
+      
+      // For each project they quit from, create a separate entry
+      quitProjects.forEach((projectId: string) => {
+        const quitHistory = member.quitHistory?.[projectId];
+        
+        if (quitHistory) {
+          quitData.push({
+            ...member,
+            quitProjectId: projectId,
+            quitProjectName: quitHistory.projectName || "Unknown",
+            quitNote: quitHistory.note || "",
+            quitDate: quitHistory.quitDate || null
+          });
+        }
+      });
+    });
+
+    setQuitMembers(quitData);
   };
 
   const fetchPayments = async () => {
@@ -89,7 +129,7 @@ export default function QuitMembersPage() {
   }, []);
 
   /* ================= CORE FIX ================= */
-  const getMemberPayments = (member: Member) => {
+  const getMemberPayments = (member: QuitMemberEntry) => {
     if (!member.quitProjectId) return [];
 
     return payments.filter(
@@ -129,6 +169,41 @@ export default function QuitMembersPage() {
     fetchPayments();
   };
 
+  /* ================= NEW: REJOIN MEMBER ================= */
+
+  const rejoinMemberToProject = async () => {
+    if (!rejoinMember) return;
+
+    const memberRef = doc(db, "members", rejoinMember.id);
+    
+    // Get current quit projects
+    const currentQuitProjects = rejoinMember.quitProjects || [];
+    
+    // Remove this project from quit list
+    const updatedQuitProjects = currentQuitProjects.filter(
+      pId => pId !== rejoinMember.quitProjectId
+    );
+
+    // Get current quit history
+    const currentQuitHistory = { ...rejoinMember.quitHistory };
+    
+    // Remove this project from quit history
+    if (currentQuitHistory[rejoinMember.quitProjectId]) {
+      delete currentQuitHistory[rejoinMember.quitProjectId];
+    }
+
+    await updateDoc(memberRef, {
+      quitProjects: updatedQuitProjects,
+      quitHistory: currentQuitHistory,
+    });
+
+    setShowRejoinBox(false);
+    setRejoinMember(null);
+    fetchQuitMembers();
+
+    alert(`✅ ${rejoinMember.name} has been rejoined to ${rejoinMember.quitProjectName}`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 text-black">
 
@@ -150,7 +225,7 @@ export default function QuitMembersPage() {
         )}
 
         <ul className="space-y-2">
-          {quitMembers.map(m => {
+          {quitMembers.map((m, idx) => {
             const memberPayments = getMemberPayments(m);
             const totalPaid = memberPayments.reduce(
               (s, p) => s + Number(p.amount || 0),
@@ -158,7 +233,7 @@ export default function QuitMembersPage() {
             );
 
             return (
-              <li key={m.id} className="p-3 border rounded bg-gray-50">
+              <li key={`${m.id}-${m.quitProjectId}-${idx}`} className="p-3 border rounded bg-gray-50">
                 <div className="flex justify-between">
 
                   <div>
@@ -193,7 +268,7 @@ export default function QuitMembersPage() {
 
                     <button
                       onClick={() => setSelectedMember(m)}
-                      className="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm"
+                      className="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm block w-full"
                     >
                       View Payments
                     </button>
@@ -203,9 +278,20 @@ export default function QuitMembersPage() {
                         setSelectedMember(m);
                         setShowAddPayment(true);
                       }}
-                      className="mt-3 px-3 py-1 bg-green-600 text-white rounded text-sm"
+                      className="mt-2 px-3 py-1 bg-green-600 text-white rounded text-sm block w-full"
                     >
                       Add Payment
+                    </button>
+
+                    {/* NEW: Rejoin Button */}
+                    <button
+                      onClick={() => {
+                        setRejoinMember(m);
+                        setShowRejoinBox(true);
+                      }}
+                      className="mt-2 px-3 py-1 bg-purple-600 text-white rounded text-sm block w-full hover:bg-purple-700 transition"
+                    >
+                      Rejoin Project
                     </button>
                   </div>
 
@@ -218,12 +304,16 @@ export default function QuitMembersPage() {
 
       {/* VIEW PAYMENTS MODAL */}
       {selectedMember && !showAddPayment && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl w-[400px] max-h-[80vh] overflow-y-auto text-black">
 
             <h2 className="font-semibold mb-3 text-black">
               Payment History — {selectedMember.name}
             </h2>
+
+            <div className="bg-gray-50 p-3 rounded mb-3 text-sm">
+              <p className="text-gray-600">Project: <span className="font-semibold text-black">{selectedMember.quitProjectName}</span></p>
+            </div>
 
             {getMemberPayments(selectedMember).length === 0 && (
               <p className="text-black">No payments found.</p>
@@ -256,12 +346,16 @@ export default function QuitMembersPage() {
 
       {/* ADD PAYMENT MODAL */}
       {showAddPayment && selectedMember && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl w-[380px] text-black">
 
             <h2 className="font-semibold mb-3 text-black">
               Add Payment — {selectedMember.name}
             </h2>
+
+            <div className="bg-gray-50 p-3 rounded mb-3 text-sm">
+              <p className="text-gray-600">Project: <span className="font-semibold text-black">{selectedMember.quitProjectName}</span></p>
+            </div>
 
             <select
               value={month}
@@ -301,6 +395,61 @@ export default function QuitMembersPage() {
                 className="px-3 py-1 bg-green-600 text-white rounded"
               >
                 Save
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* NEW: REJOIN MEMBER MODAL */}
+      {showRejoinBox && rejoinMember && (
+        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-xl w-[90%] max-w-[450px] text-black">
+
+            <h2 className="font-bold mb-4 text-xl text-purple-600">
+              Rejoin Member to Project
+            </h2>
+
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+              <p className="font-semibold text-black">{rejoinMember.name}</p>
+              <p className="text-sm text-gray-600">Member #{rejoinMember.number}</p>
+              <p className="text-sm text-gray-600">Unit: {rejoinMember.unitName}</p>
+              <p className="text-sm font-medium text-purple-700 mt-2">
+                Will rejoin: {rejoinMember.quitProjectName}
+              </p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-300 rounded p-3 mb-4">
+              <p className="text-sm text-blue-800">
+                ℹ️ <strong>Note:</strong> This member will be removed from the quit list 
+                for "{rejoinMember.quitProjectName}" and will be able to participate 
+                in this project again. Their payment history will be preserved.
+              </p>
+            </div>
+
+            {rejoinMember.quitNote && (
+              <div className="bg-gray-50 p-3 rounded mb-4">
+                <p className="text-xs text-gray-600 mb-1">Previous Quit Reason:</p>
+                <p className="text-sm text-gray-800 italic">"{rejoinMember.quitNote}"</p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => {
+                  setShowRejoinBox(false);
+                  setRejoinMember(null);
+                }} 
+                className="border px-4 py-2 rounded hover:bg-gray-100 transition"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={rejoinMemberToProject} 
+                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
+              >
+                Confirm Rejoin
               </button>
             </div>
 

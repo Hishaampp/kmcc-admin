@@ -33,7 +33,6 @@ export default function MembersPage() {
   const [showDeleteBox, setShowDeleteBox] = useState(false);
   const [deleteMemberId, setDeleteMemberId] = useState("");
 
-  // NEW: Quit Member State
   const [showQuitBox, setShowQuitBox] = useState(false);
   const [quitMember, setQuitMember] = useState<any>(null);
   const [quitProjectId, setQuitProjectId] = useState("");
@@ -79,6 +78,8 @@ export default function MembersPage() {
       nomineeRelation,
       nomineeContact,
 
+      quitProjects: [], // Initialize empty quit projects array
+
       createdAt: serverTimestamp(),
     });
 
@@ -117,7 +118,7 @@ export default function MembersPage() {
     fetchMembers();
   };
 
-  // NEW: QUIT MEMBER FUNCTION
+  // UPDATED: QUIT MEMBER FUNCTION
   const quitMemberFromProject = async () => {
     if (!quitMember || !quitProjectId) {
       alert("Please select a project");
@@ -126,12 +127,32 @@ export default function MembersPage() {
 
     const project = projects.find(p => p.id === quitProjectId);
 
+    // Get existing quit projects or initialize empty array
+    const currentQuitProjects = quitMember.quitProjects || [];
+    
+    // Check if already quit from this project
+    if (currentQuitProjects.includes(quitProjectId)) {
+      alert("Member has already quit from this project");
+      return;
+    }
+
+    // Add this project to quit list
+    const updatedQuitProjects = [...currentQuitProjects, quitProjectId];
+
+    // Prepare quit history entry
+    const quitHistory = quitMember.quitHistory || {};
+    quitHistory[quitProjectId] = {
+      projectName: project?.name || "Unknown Project",
+      note: quitNote.trim() || "",
+      quitDate: serverTimestamp()
+    };
+
     await updateDoc(doc(db, "members", quitMember.id), {
-      status: "quit",
-      quitProjectId: quitProjectId,
-      quitProjectName: project?.name || "Unknown Project",
-      quitNote: quitNote.trim() || "",
-      quitDate: serverTimestamp(),
+      quitProjects: updatedQuitProjects,
+      quitHistory: quitHistory,
+      
+      // Keep status as active if they're still in other projects
+      status: "active"
     });
 
     setShowQuitBox(false);
@@ -150,8 +171,11 @@ export default function MembersPage() {
     m.nomineeName?.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Only show active members
-  const activeMembers = filteredMembers.filter(m => m.status === "active");
+  // UPDATED: Show members who haven't quit from ALL projects
+  const activeMembers = filteredMembers.filter(m => {
+    // Show if quitProjects doesn't exist or is empty (backward compatibility)
+    return !m.quitProjects || m.quitProjects.length === 0 || m.status === "active";
+  });
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -201,67 +225,92 @@ export default function MembersPage() {
           <p className="text-gray-500 text-center py-4">No active members found</p>
         )}
 
-        {activeMembers.map(m => (
-          <div key={m.id} className="border p-4 rounded-lg mb-3 text-black hover:shadow-md transition">
+        {activeMembers.map(m => {
+          const quitProjects = m.quitProjects || [];
+          const hasQuitSomeProjects = quitProjects.length > 0;
+          
+          return (
+            <div key={m.id} className="border p-4 rounded-lg mb-3 text-black hover:shadow-md transition">
 
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-bold text-lg">{m.name}</p>
-                <p className="text-sm text-gray-600">Member No: #{m.number}</p>
-                <p className="text-sm text-gray-600">Unit: {m.unitName}</p>
-                <p className="text-sm">📞 {m.contactNumber || "Not Added"}</p>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-lg">{m.name}</p>
+                    {hasQuitSomeProjects && (
+                      <span className="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded">
+                        Quit from {quitProjects.length} project{quitProjects.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600">Member No: #{m.number}</p>
+                  <p className="text-sm text-gray-600">Unit: {m.unitName}</p>
+                  <p className="text-sm">📞 {m.contactNumber || "Not Added"}</p>
+                  
+                  {/* Show quit project names */}
+                  {hasQuitSomeProjects && (
+                    <div className="mt-2 text-xs text-orange-600">
+                      <p className="font-semibold">Quit from:</p>
+                      {quitProjects.map((pId: string) => {
+                        const quitInfo = m.quitHistory?.[pId];
+                        return (
+                          <p key={pId}>• {quitInfo?.projectName || pId}</p>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 flex-wrap justify-end">
+                  <button 
+                    onClick={() => { 
+                      setEditMember({ ...m }); 
+                      setShowEditBox(true); 
+                    }} 
+                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition text-sm"
+                  >
+                    Edit
+                  </button>
+                  
+                  <button 
+                    onClick={() => { 
+                      setQuitMember(m); 
+                      setShowQuitBox(true); 
+                    }} 
+                    className="bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700 transition text-sm"
+                  >
+                    Quit Project
+                  </button>
+                  
+                  <button 
+                    onClick={() => { 
+                      setDeleteMemberId(m.id); 
+                      setShowDeleteBox(true); 
+                    }} 
+                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
 
-              <div className="flex gap-2 flex-wrap justify-end">
-                <button 
-                  onClick={() => { 
-                    setEditMember({ ...m }); 
-                    setShowEditBox(true); 
-                  }} 
-                  className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition text-sm"
-                >
-                  Edit
-                </button>
-                
-                <button 
-                  onClick={() => { 
-                    setQuitMember(m); 
-                    setShowQuitBox(true); 
-                  }} 
-                  className="bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700 transition text-sm"
-                >
-                  Quit
-                </button>
-                
-                <button 
-                  onClick={() => { 
-                    setDeleteMemberId(m.id); 
-                    setShowDeleteBox(true); 
-                  }} 
-                  className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm"
-                >
-                  Delete
-                </button>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-50 p-3 rounded">
+                <div>
+                  <p className="text-xs text-gray-600">Nominee Name</p>
+                  <p className="font-semibold text-black">{m.nomineeName || "Not Added"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Relation</p>
+                  <p className="font-semibold text-black">{m.nomineeRelation || "Not Added"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Nominee Contact</p>
+                  <p className="font-semibold text-black">{m.nomineeContact || "Not Added"}</p>
+                </div>
               </div>
+
             </div>
-
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-gray-50 p-3 rounded">
-              <div>
-                <p className="text-xs text-gray-600">Nominee Name</p>
-                <p className="font-semibold text-black">{m.nomineeName || "Not Added"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-600">Relation</p>
-                <p className="font-semibold text-black">{m.nomineeRelation || "Not Added"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-600">Nominee Contact</p>
-                <p className="font-semibold text-black">{m.nomineeContact || "Not Added"}</p>
-              </div>
-            </div>
-
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* EDIT MODAL */}
@@ -345,6 +394,20 @@ export default function MembersPage() {
               <p className="font-semibold text-black">{quitMember.name}</p>
               <p className="text-sm text-gray-600">Member #{quitMember.number}</p>
               <p className="text-sm text-gray-600">Unit: {quitMember.unitName}</p>
+              
+              {quitMember.quitProjects && quitMember.quitProjects.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-orange-300">
+                  <p className="text-xs text-orange-700 font-semibold">Already quit from:</p>
+                  {quitMember.quitProjects.map((pId: string) => {
+                    const quitInfo = quitMember.quitHistory?.[pId];
+                    return (
+                      <p key={pId} className="text-xs text-orange-600">
+                        • {quitInfo?.projectName || pId}
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <label className="text-sm font-medium block mb-2">
@@ -356,11 +419,13 @@ export default function MembersPage() {
               className="border w-full p-3 mb-4 text-black rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="">-- Select Project --</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+              {projects
+                .filter(p => !quitMember.quitProjects?.includes(p.id))
+                .map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
             </select>
 
             <label className="text-sm font-medium block mb-2">
@@ -375,8 +440,7 @@ export default function MembersPage() {
 
             <div className="bg-yellow-50 border border-yellow-300 rounded p-3 mb-4">
               <p className="text-sm text-yellow-800">
-                ⚠️ <strong>Important:</strong> This member will be moved to "Quit Members" 
-                for the selected project only. They can still be active in other projects.
+                ⚠️ <strong>Important:</strong> This member will be marked as quit from the selected project only. They will remain active for other projects.
               </p>
             </div>
 
