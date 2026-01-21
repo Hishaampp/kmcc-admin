@@ -4,9 +4,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-
+import { useEffect, useState } from "react";
 
 export default function Dashboard() {
+  const [userEmail, setUserEmail] = useState<string>("");
+
+  useEffect(() => {
+    // Get current user email from Firebase Auth
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      setUserEmail(currentUser.email || "");
+    }
+  }, []);
+
   const logout = async () => {
     await signOut(auth);
     window.location.href = "/login";
@@ -38,32 +48,45 @@ export default function Dashboard() {
 
         {/* LOGO + TITLE */}
         <div className="flex items-center gap-3">
-    <Image
-  src="/KMCC.jpeg"
-  alt="KMCC Logo"
-  width={140}
-  height={40}
-  priority
-/>
+          <Image
+            src="/KMCC.jpeg"
+            alt="KMCC Logo"
+            width={140}
+            height={40}
+            priority
+          />
 
           <h1 className="text-lg font-semibold text-gray-800">
             Global KMCC Investment Fund
           </h1>
         </div>
 
-        <button
-          onClick={logout}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-        >
-          Logout
-        </button>
+        {/* USER INFO + LOGOUT */}
+        <div className="flex items-center gap-4">
+          {/* Current User Badge */}
+          {userEmail && (
+            <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-700">
+                {userEmail}
+              </span>
+            </div>
+          )}
+
+          <button
+            onClick={logout}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* ================= CONTENT ================= */}
       <div className="max-w-7xl mx-auto py-10 px-6">
 
         <h2 className="text-2xl font-bold text-gray-800 mb-6">
-          Welcome Super Admin 👋
+          Welcome Back 👋
         </h2>
 
         {/* ================= CORE MANAGEMENT ================= */}
@@ -157,8 +180,13 @@ export default function Dashboard() {
           />
         </Section>
 
-        {/* ================= DOCUMENTS ================= */}
-        <Section title="Documents & Files">
+        {/* ================= SYSTEM & SECURITY ================= */}
+        <Section title="System & Security">
+          <Card
+            href="/dashboard/audit-logs"
+            title="Audit Logs"
+            description="View all system activities and changes."
+          />
           <Card
             href="/dashboard/documents"
             title="Documents Vault"
