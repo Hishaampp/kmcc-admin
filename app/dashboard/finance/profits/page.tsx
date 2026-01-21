@@ -11,6 +11,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
 
 export default function ProfitPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -61,10 +62,37 @@ export default function ProfitPage() {
 
     if(editingId){
       await updateDoc(doc(db,"projectProfits",editingId), payload);
+      
+      // 🔔 LOG AUDIT EVENT
+      await logAuditEvent({
+        action: "profit_added",
+        collectionName: "projectProfits",
+        documentId: editingId,
+        details: {
+          action: "Updated",
+          projectName: project?.name,
+          profitTitle: title,
+          amount: `₹${f(Number(amount))}`,
+          period: month && year ? `${month} ${year}` : "Not specified",
+        },
+      });
     } else {
-      await addDoc(collection(db,"projectProfits"),{
+      const newRef = await addDoc(collection(db,"projectProfits"),{
         ...payload,
         createdAt: serverTimestamp()
+      });
+      
+      // 🔔 LOG AUDIT EVENT
+      await logAuditEvent({
+        action: "profit_added",
+        collectionName: "projectProfits",
+        documentId: newRef.id,
+        details: {
+          projectName: project?.name,
+          profitTitle: title,
+          amount: `₹${f(Number(amount))}`,
+          period: month && year ? `${month} ${year}` : "Not specified",
+        },
       });
     }
 
@@ -84,7 +112,24 @@ export default function ProfitPage() {
 
   const deleteProfit = async (id:string) => {
     if(!confirm("Delete this profit entry?")) return;
+    
+    const profit = records.find(r => r.id === id);
+    
     await deleteDoc(doc(db,"projectProfits",id));
+    
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "profit_deleted",
+      collectionName: "projectProfits",
+      documentId: id,
+      details: {
+        projectName: profit?.projectName,
+        profitTitle: profit?.title,
+        amount: `₹${f(profit?.amount)}`,
+        period: profit?.month && profit?.year ? `${profit.month} ${profit.year}` : "Not specified",
+      },
+    });
+    
     load();
   };
 

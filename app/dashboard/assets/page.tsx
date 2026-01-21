@@ -9,6 +9,7 @@ import {
   getDocs,
   serverTimestamp,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
 
 /* ================= UTILS ================= */
 const money = (n:number) =>
@@ -46,13 +47,26 @@ export default function AssetManagementPage() {
 
     const project = projects.find(p => p.id === projectId);
 
-    await addDoc(collection(db, "projectAssets"), {
+    const newAssetRef = await addDoc(collection(db, "projectAssets"), {
       projectId,
       projectName: project?.name || "",
       title,
       value: Number(value),
       note,
       createdAt: serverTimestamp(),
+    });
+
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "asset_added",
+      collectionName: "projectAssets",
+      documentId: newAssetRef.id,
+      details: {
+        projectName: project?.name,
+        assetTitle: title,
+        assetValue: `₹${money(Number(value))}`,
+        note: note || "No note",
+      },
     });
 
     setTitle("");

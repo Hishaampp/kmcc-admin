@@ -23,6 +23,7 @@ import {
 } from "firebase/storage";
 
 import { onAuthStateChanged } from "firebase/auth";
+import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
 
 /* ================= TYPES ================= */
 
@@ -130,7 +131,7 @@ export default function DocumentsPage() {
             ? null
             : projects.find(p => p.id === projectId) ?? null;
 
-        await addDoc(collection(db, "documents"), {
+        const newDocRef = await addDoc(collection(db, "documents"), {
           title,
           category,
           fileName: file.name,
@@ -142,6 +143,20 @@ export default function DocumentsPage() {
           projectName: selectedProject ? selectedProject.name : null,
           uploadedBy: user.email,
           createdAt: serverTimestamp(),
+        });
+
+        // 🔔 LOG AUDIT EVENT
+        await logAuditEvent({
+          action: "document_uploaded",
+          collectionName: "documents",
+          documentId: newDocRef.id,
+          details: {
+            documentTitle: title,
+            category: category,
+            fileName: file.name,
+            fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+            projectName: selectedProject ? selectedProject.name : "General Document",
+          },
         });
 
         setTitle("");
@@ -163,6 +178,19 @@ export default function DocumentsPage() {
 
     await deleteObject(ref(storage, docItem.storagePath));
     await deleteDoc(doc(db, "documents", docItem.id));
+
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "document_deleted",
+      collectionName: "documents",
+      documentId: docItem.id,
+      details: {
+        documentTitle: docItem.title,
+        category: docItem.category,
+        fileName: docItem.fileName,
+        projectName: docItem.projectName || "General Document",
+      },
+    });
 
     loadDocuments();
   };

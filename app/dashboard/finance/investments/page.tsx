@@ -11,6 +11,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
 
 export default function InvestmentPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -56,10 +57,35 @@ export default function InvestmentPage() {
 
     if(editingId){
       await updateDoc(doc(db,"projectInvestments",editingId), payload);
+      
+      // 🔔 LOG AUDIT EVENT
+      await logAuditEvent({
+        action: "investment_added",
+        collectionName: "projectInvestments",
+        documentId: editingId,
+        details: {
+          action: "Updated",
+          projectName: project?.name,
+          investmentTitle: title,
+          amount: `₹${f(Number(amount))}`,
+        },
+      });
     } else {
-      await addDoc(collection(db,"projectInvestments"),{
+      const newRef = await addDoc(collection(db,"projectInvestments"),{
         ...payload,
         createdAt: serverTimestamp()
+      });
+      
+      // 🔔 LOG AUDIT EVENT
+      await logAuditEvent({
+        action: "investment_added",
+        collectionName: "projectInvestments",
+        documentId: newRef.id,
+        details: {
+          projectName: project?.name,
+          investmentTitle: title,
+          amount: `₹${f(Number(amount))}`,
+        },
       });
     }
 
@@ -79,7 +105,23 @@ export default function InvestmentPage() {
   /* DELETE */
   const deleteInvestment = async (id:string) => {
     if(!confirm("Delete this investment?")) return;
+    
+    const investment = records.find(r => r.id === id);
+    
     await deleteDoc(doc(db,"projectInvestments",id));
+    
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "investment_deleted",
+      collectionName: "projectInvestments",
+      documentId: id,
+      details: {
+        projectName: investment?.projectName,
+        investmentTitle: investment?.title,
+        amount: `₹${f(investment?.amount)}`,
+      },
+    });
+    
     load();
   };
 

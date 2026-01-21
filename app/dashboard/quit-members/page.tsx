@@ -11,6 +11,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
 
 /* ================= TYPES ================= */
 
@@ -65,7 +66,6 @@ export default function QuitMembersPage() {
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
 
-  // NEW: Rejoin state
   const [showRejoinBox, setShowRejoinBox] = useState(false);
   const [rejoinMember, setRejoinMember] = useState<QuitMemberEntry | null>(null);
 
@@ -89,13 +89,11 @@ export default function QuitMembersPage() {
       ...(d.data() as any) 
     }));
 
-    // Create separate entries for each quit project
     const quitData: QuitMemberEntry[] = [];
     
     allMembers.forEach(member => {
       const quitProjects = member.quitProjects || [];
       
-      // For each project they quit from, create a separate entry
       quitProjects.forEach((projectId: string) => {
         const quitHistory = member.quitHistory?.[projectId];
         
@@ -147,7 +145,7 @@ export default function QuitMembersPage() {
       return;
     }
 
-    await addDoc(collection(db, "payments"), {
+    const newPaymentRef = await addDoc(collection(db, "payments"), {
       projectId: selectedMember.quitProjectId || "",
       projectName: selectedMember.quitProjectName || "Unknown",
       unitId: selectedMember.unitId || "",
@@ -161,6 +159,21 @@ export default function QuitMembersPage() {
       createdAt: serverTimestamp(),
     });
 
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "payment_added",
+      collectionName: "payments",
+      documentId: newPaymentRef.id,
+      details: {
+        memberName: selectedMember.name,
+        memberNumber: selectedMember.number,
+        projectName: selectedMember.quitProjectName,
+        amount: `₹${new Intl.NumberFormat("en-IN").format(Number(amount))}`,
+        period: `${month} ${year}`,
+        note: "Payment for quit member",
+      },
+    });
+
     setAmount("");
     setMonth("");
     setYear("");
@@ -169,25 +182,19 @@ export default function QuitMembersPage() {
     fetchPayments();
   };
 
-  /* ================= NEW: REJOIN MEMBER ================= */
+  /* ================= REJOIN MEMBER ================= */
 
   const rejoinMemberToProject = async () => {
     if (!rejoinMember) return;
 
     const memberRef = doc(db, "members", rejoinMember.id);
     
-    // Get current quit projects
     const currentQuitProjects = rejoinMember.quitProjects || [];
-    
-    // Remove this project from quit list
     const updatedQuitProjects = currentQuitProjects.filter(
       pId => pId !== rejoinMember.quitProjectId
     );
 
-    // Get current quit history
     const currentQuitHistory = { ...rejoinMember.quitHistory };
-    
-    // Remove this project from quit history
     if (currentQuitHistory[rejoinMember.quitProjectId]) {
       delete currentQuitHistory[rejoinMember.quitProjectId];
     }
@@ -195,6 +202,19 @@ export default function QuitMembersPage() {
     await updateDoc(memberRef, {
       quitProjects: updatedQuitProjects,
       quitHistory: currentQuitHistory,
+    });
+
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "member_rejoined",
+      collectionName: "members",
+      documentId: rejoinMember.id,
+      details: {
+        memberName: rejoinMember.name,
+        memberNumber: rejoinMember.number,
+        projectName: rejoinMember.quitProjectName,
+        previousQuitNote: rejoinMember.quitNote || "No reason provided",
+      },
     });
 
     setShowRejoinBox(false);
@@ -283,7 +303,6 @@ export default function QuitMembersPage() {
                       Add Payment
                     </button>
 
-                    {/* NEW: Rejoin Button */}
                     <button
                       onClick={() => {
                         setRejoinMember(m);
@@ -402,7 +421,7 @@ export default function QuitMembersPage() {
         </div>
       )}
 
-      {/* NEW: REJOIN MEMBER MODAL */}
+      {/* REJOIN MEMBER MODAL */}
       {showRejoinBox && rejoinMember && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-xl w-[90%] max-w-[450px] text-black">

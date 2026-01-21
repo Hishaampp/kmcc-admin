@@ -11,6 +11,7 @@ import {
   deleteDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
 
 export default function MembersPage() {
 
@@ -66,7 +67,7 @@ export default function MembersPage() {
 
     const unit = units.find(u => u.id === selectedUnit);
 
-    await addDoc(collection(db, "members"), {
+    const newMemberRef = await addDoc(collection(db, "members"), {
       name: memberName,
       number: memberNumber,
       unitId: selectedUnit,
@@ -78,9 +79,22 @@ export default function MembersPage() {
       nomineeRelation,
       nomineeContact,
 
-      quitProjects: [], // Initialize empty quit projects array
+      quitProjects: [],
 
       createdAt: serverTimestamp(),
+    });
+
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "member_added",
+      collectionName: "members",
+      documentId: newMemberRef.id,
+      details: {
+        memberName,
+        memberNumber,
+        unitName: unit?.name,
+        contactNumber,
+      },
     });
 
     setMemberName("");
@@ -107,18 +121,45 @@ export default function MembersPage() {
       nomineeContact: editMember.nomineeContact || "",
     });
 
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "member_edited",
+      collectionName: "members",
+      documentId: editMember.id,
+      details: {
+        memberName: editMember.name,
+        memberNumber: editMember.number,
+        changes: "Profile information updated",
+      },
+    });
+
     setShowEditBox(false);
     fetchMembers();
   };
 
   // DELETE
   const deleteMember = async () => {
+    const memberToDelete = members.find(m => m.id === deleteMemberId);
+    
     await deleteDoc(doc(db, "members", deleteMemberId));
+
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "member_deleted",
+      collectionName: "members",
+      documentId: deleteMemberId,
+      details: {
+        memberName: memberToDelete?.name,
+        memberNumber: memberToDelete?.number,
+        unitName: memberToDelete?.unitName,
+      },
+    });
+
     setShowDeleteBox(false);
     fetchMembers();
   };
 
-  // UPDATED: QUIT MEMBER FUNCTION
+  // QUIT MEMBER FUNCTION
   const quitMemberFromProject = async () => {
     if (!quitMember || !quitProjectId) {
       alert("Please select a project");
@@ -126,20 +167,15 @@ export default function MembersPage() {
     }
 
     const project = projects.find(p => p.id === quitProjectId);
-
-    // Get existing quit projects or initialize empty array
     const currentQuitProjects = quitMember.quitProjects || [];
     
-    // Check if already quit from this project
     if (currentQuitProjects.includes(quitProjectId)) {
       alert("Member has already quit from this project");
       return;
     }
 
-    // Add this project to quit list
     const updatedQuitProjects = [...currentQuitProjects, quitProjectId];
 
-    // Prepare quit history entry
     const quitHistory = quitMember.quitHistory || {};
     quitHistory[quitProjectId] = {
       projectName: project?.name || "Unknown Project",
@@ -150,9 +186,20 @@ export default function MembersPage() {
     await updateDoc(doc(db, "members", quitMember.id), {
       quitProjects: updatedQuitProjects,
       quitHistory: quitHistory,
-      
-      // Keep status as active if they're still in other projects
       status: "active"
+    });
+
+    // 🔔 LOG AUDIT EVENT
+    await logAuditEvent({
+      action: "member_quit",
+      collectionName: "members",
+      documentId: quitMember.id,
+      details: {
+        memberName: quitMember.name,
+        memberNumber: quitMember.number,
+        projectName: project?.name,
+        quitNote: quitNote.trim() || "No reason provided",
+      },
     });
 
     setShowQuitBox(false);
@@ -171,9 +218,7 @@ export default function MembersPage() {
     m.nomineeName?.toLowerCase().includes(search.toLowerCase())
   );
 
-  // UPDATED: Show members who haven't quit from ALL projects
   const activeMembers = filteredMembers.filter(m => {
-    // Show if quitProjects doesn't exist or is empty (backward compatibility)
     return !m.quitProjects || m.quitProjects.length === 0 || m.status === "active";
   });
 
@@ -246,7 +291,6 @@ export default function MembersPage() {
                   <p className="text-sm text-gray-600">Unit: {m.unitName}</p>
                   <p className="text-sm">📞 {m.contactNumber || "Not Added"}</p>
                   
-                  {/* Show quit project names */}
                   {hasQuitSomeProjects && (
                     <div className="mt-2 text-xs text-orange-600">
                       <p className="font-semibold">Quit from:</p>
