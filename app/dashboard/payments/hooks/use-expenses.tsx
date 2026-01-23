@@ -26,12 +26,13 @@ export default function useExpenses() {
   }, []);
 
   const addExpense = async (data: any) => {
-    await addDoc(collection(db, "expenses"), {
+    const docRef = await addDoc(collection(db, "expenses"), {
       ...data,
       createdAt: serverTimestamp(),
       type: "expense"
     });
     fetchExpenses();
+    return docRef; // ✅ ADD THIS LINE
   };
 
   const updateExpense = async (id: string, data: Partial<any>) => {

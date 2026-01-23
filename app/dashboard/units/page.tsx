@@ -12,6 +12,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog";
 
 export default function UnitsPage() {
   const router = useRouter();
@@ -22,9 +23,11 @@ export default function UnitsPage() {
   const [showEditBox, setShowEditBox] = useState(false);
   const [editUnitId, setEditUnitId] = useState("");
   const [editUnitName, setEditUnitName] = useState("");
+  const [editUnitOldName, setEditUnitOldName] = useState("");
 
   const [showDeleteBox, setShowDeleteBox] = useState(false);
   const [deleteUnitId, setDeleteUnitId] = useState("");
+  const [deleteUnitName, setDeleteUnitName] = useState("");
 
   // ======================
   // SMART SORT FUNCTION
@@ -33,7 +36,7 @@ export default function UnitsPage() {
     return list.sort((a: any, b: any) => {
       const getNumber = (name: string) => {
         const match = name.match(/^\d+/);
-        return match ? Number(match[0]) : Infinity; // non-number names go last
+        return match ? Number(match[0]) : Infinity;
       };
 
       const numA = getNumber(a.name);
@@ -64,9 +67,17 @@ export default function UnitsPage() {
   const addUnit = async () => {
     if (!unitName.trim()) return;
 
-    await addDoc(collection(db, "units"), {
+    const docRef = await addDoc(collection(db, "units"), {
       name: unitName,
       createdAt: serverTimestamp(),
+    });
+
+    // Log audit
+    await logAuditEvent({
+      action: "unit_added",
+      collectionName: "units",
+      documentId: docRef.id,
+      details: { unitName }
     });
 
     setUnitName("");
@@ -79,6 +90,7 @@ export default function UnitsPage() {
   const openEdit = (unit: any) => {
     setEditUnitId(unit.id);
     setEditUnitName(unit.name);
+    setEditUnitOldName(unit.name);
     setShowEditBox(true);
   };
 
@@ -89,6 +101,17 @@ export default function UnitsPage() {
       name: editUnitName,
     });
 
+    // Log audit
+    await logAuditEvent({
+      action: "unit_edited",
+      collectionName: "units",
+      documentId: editUnitId,
+      details: { 
+        oldName: editUnitOldName, 
+        newName: editUnitName 
+      }
+    });
+
     setShowEditBox(false);
     fetchUnits();
   };
@@ -96,8 +119,23 @@ export default function UnitsPage() {
   // ======================
   // DELETE UNIT
   // ======================
+  const openDelete = (unit: any) => {
+    setDeleteUnitId(unit.id);
+    setDeleteUnitName(unit.name);
+    setShowDeleteBox(true);
+  };
+
   const deleteUnit = async () => {
     await deleteDoc(doc(db, "units", deleteUnitId));
+
+    // Log audit
+    await logAuditEvent({
+      action: "unit_deleted",
+      collectionName: "units",
+      documentId: deleteUnitId,
+      details: { unitName: deleteUnitName }
+    });
+
     setShowDeleteBox(false);
     fetchUnits();
   };
@@ -167,10 +205,7 @@ export default function UnitsPage() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    setDeleteUnitId(unit.id);
-                    setShowDeleteBox(true);
-                  }}
+                  onClick={() => openDelete(unit)}
                   className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm"
                 >
                   Delete

@@ -12,6 +12,7 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -88,11 +89,44 @@ export default function OtherProjectPayments() {
     };
 
     if (editingId) {
+      // Find old record for audit comparison
+      const oldRecord = records.find(r => r.id === editingId);
+      
       await updateDoc(doc(db, "projectOtherPayments", editingId), payload);
+
+      // Log audit for edit
+      await logAuditEvent({
+        action: "payment_edited",
+        collectionName: "projectOtherPayments",
+        documentId: editingId,
+        details: {
+          title,
+          projectName: project?.name || "",
+          amount: Number(amount),
+          month,
+          year,
+          oldAmount: oldRecord?.amount,
+          oldTitle: oldRecord?.title
+        }
+      });
     } else {
-      await addDoc(collection(db, "projectOtherPayments"), {
+      const docRef = await addDoc(collection(db, "projectOtherPayments"), {
         ...payload,
         createdAt: serverTimestamp(),
+      });
+
+      // Log audit for add
+      await logAuditEvent({
+        action: "payment_added",
+        collectionName: "projectOtherPayments",
+        documentId: docRef.id,
+        details: {
+          title,
+          projectName: project?.name || "",
+          amount: Number(amount),
+          month,
+          year
+        }
       });
     }
 
@@ -113,10 +147,26 @@ export default function OtherProjectPayments() {
 
   // ================= DELETE =================
   const deletePayment = async (id:string) => {
+    const record = records.find(r => r.id === id);
     const ok = confirm("Are you sure you want to delete this payment?");
     if (!ok) return;
 
     await deleteDoc(doc(db, "projectOtherPayments", id));
+
+    // Log audit for delete
+    await logAuditEvent({
+      action: "payment_deleted",
+      collectionName: "projectOtherPayments",
+      documentId: id,
+      details: {
+        title: record?.title || "Unknown",
+        projectName: record?.projectName || "No Project",
+        amount: record?.amount || 0,
+        month: record?.month || "",
+        year: record?.year || ""
+      }
+    });
+
     load();
   };
 

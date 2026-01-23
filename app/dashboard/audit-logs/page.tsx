@@ -30,27 +30,99 @@ export default function AuditLogsPage() {
   }, []);
 
   const actionColors: Record<string, string> = {
+    // Members
     member_added: "bg-green-100 text-green-700",
     member_edited: "bg-blue-100 text-blue-700",
     member_deleted: "bg-red-100 text-red-700",
     member_quit: "bg-orange-100 text-orange-700",
     member_rejoined: "bg-purple-100 text-purple-700",
+    
+    // Payments
     payment_added: "bg-green-100 text-green-700",
     payment_deleted: "bg-red-100 text-red-700",
+    
+    // Expenses
     expense_added: "bg-red-100 text-red-700",
+    expense_edited: "bg-blue-100 text-blue-700",
     expense_deleted: "bg-gray-100 text-gray-700",
+    
+    // Projects
+    project_added: "bg-green-100 text-green-700",
+    project_edited: "bg-blue-100 text-blue-700",
+    project_deleted: "bg-red-100 text-red-700",
+    
+    // Units
+    unit_added: "bg-green-100 text-green-700",
+    unit_edited: "bg-blue-100 text-blue-700",
+    unit_deleted: "bg-red-100 text-red-700",
+    
+    // Other Income
+    other_income_added: "bg-green-100 text-green-700",
+    other_income_deleted: "bg-red-100 text-red-700",
+    
+    // Profits
+    profit_added: "bg-green-100 text-green-700",
+    profit_deleted: "bg-red-100 text-red-700",
+    
+    // Assets
+    asset_added: "bg-green-100 text-green-700",
+    asset_deleted: "bg-red-100 text-red-700",
+    
+    // Investments
+    investment_added: "bg-green-100 text-green-700",
+    investment_deleted: "bg-red-100 text-red-700",
+    
+    // Documents
+    document_uploaded: "bg-green-100 text-green-700",
+    document_deleted: "bg-red-100 text-red-700",
   };
 
   const actionLabels: Record<string, string> = {
+    // Members
     member_added: "Member Added",
     member_edited: "Member Edited",
     member_deleted: "Member Deleted",
     member_quit: "Member Quit",
     member_rejoined: "Member Rejoined",
+    
+    // Payments
     payment_added: "Payment Added",
     payment_deleted: "Payment Deleted",
+    
+    // Expenses
     expense_added: "Expense Added",
+    expense_edited: "Expense Edited",
     expense_deleted: "Expense Deleted",
+    
+    // Projects
+    project_added: "Project Added",
+    project_edited: "Project Edited",
+    project_deleted: "Project Deleted",
+    
+    // Units
+    unit_added: "Unit Added",
+    unit_edited: "Unit Edited",
+    unit_deleted: "Unit Deleted",
+    
+    // Other Income
+    other_income_added: "Other Income Added",
+    other_income_deleted: "Other Income Deleted",
+    
+    // Profits
+    profit_added: "Profit Added",
+    profit_deleted: "Profit Deleted",
+    
+    // Assets
+    asset_added: "Asset Added",
+    asset_deleted: "Asset Deleted",
+    
+    // Investments
+    investment_added: "Investment Added",
+    investment_deleted: "Investment Deleted",
+    
+    // Documents
+    document_uploaded: "Document Uploaded",
+    document_deleted: "Document Deleted",
   };
 
   return (

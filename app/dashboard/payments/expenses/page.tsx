@@ -5,6 +5,7 @@ import usePayments from "../hooks/use-payments";
 import useExpenses from "../hooks/use-expenses";
 import ExpenseForm from "../components/expense-form";
 import { useState } from "react";
+import { logAuditEvent } from "@/lib/auditLog";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -69,15 +70,63 @@ export default function ExpensesPage() {
   const handleSubmit = async (data:any) => {
     if(editingExpense){
       await updateExpense(editingExpense.id, data);
+      
+      // Log audit for edit
+      await logAuditEvent({
+        action: "expense_edited",
+        collectionName: "expenses",
+        documentId: editingExpense.id,
+        details: {
+          title: data.title,
+          projectName: data.projectName,
+          amount: data.amount,
+          month: data.month,
+          year: data.year,
+          oldAmount: editingExpense.amount
+        }
+      });
+      
       setEditingExpense(null);
     } else {
-      await addExpense(data);
+      const docRef = await addExpense(data);
+      
+      // Log audit for add
+      await logAuditEvent({
+        action: "expense_added",
+        collectionName: "expenses",
+        documentId: docRef?.id,
+        details: {
+          title: data.title,
+          projectName: data.projectName,
+          amount: data.amount,
+          month: data.month,
+          year: data.year
+        }
+      });
     }
   };
 
   const handleDelete = async (id:string) => {
+    const expense = expenses.find((e:any) => e.id === id);
     const ok = confirm("Are you sure you want to delete this expense?");
-    if(ok) await deleteExpenseById(id);
+    
+    if(ok) {
+      await deleteExpenseById(id);
+      
+      // Log audit for delete
+      await logAuditEvent({
+        action: "expense_deleted",
+        collectionName: "expenses",
+        documentId: id,
+        details: {
+          title: expense?.title || "Unknown",
+          projectName: expense?.projectName || "No Project",
+          amount: expense?.amount || 0,
+          month: expense?.month || "",
+          year: expense?.year || ""
+        }
+      });
+    }
   };
 
   return (

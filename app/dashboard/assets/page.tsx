@@ -8,8 +8,11 @@ import {
   collection,
   getDocs,
   serverTimestamp,
+  updateDoc,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
-import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
+import { logAuditEvent } from "@/lib/auditLog";
 
 /* ================= UTILS ================= */
 const money = (n:number) =>
@@ -28,6 +31,8 @@ export default function AssetManagementPage() {
   const [note, setNote] = useState("");
   const [search, setSearch] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   /* ================= LOAD ================= */
   const load = async () => {
     const p = await getDocs(collection(db, "projects"));
@@ -41,38 +46,103 @@ export default function AssetManagementPage() {
     load();
   }, []);
 
-  /* ================= ADD ================= */
-  const addAsset = async () => {
+  /* ================= RESET FORM ================= */
+  const resetForm = () => {
+    setEditingId(null);
+    setProjectId("");
+    setTitle("");
+    setValue("");
+    setNote("");
+  };
+
+  /* ================= ADD / UPDATE ================= */
+  const saveAsset = async () => {
     if (!projectId || !title.trim() || !value.trim()) return;
 
     const project = projects.find(p => p.id === projectId);
 
-    const newAssetRef = await addDoc(collection(db, "projectAssets"), {
+    const payload = {
       projectId,
       projectName: project?.name || "",
       title,
       value: Number(value),
       note,
-      createdAt: serverTimestamp(),
-    });
+    };
 
-    // 🔔 LOG AUDIT EVENT
+    if (editingId) {
+      // Find old record for audit comparison
+      const oldAsset = assets.find(a => a.id === editingId);
+
+      await updateDoc(doc(db, "projectAssets", editingId), payload);
+
+      // Log audit for edit
+      await logAuditEvent({
+        action: "asset_edited",
+        collectionName: "projectAssets",
+        documentId: editingId,
+        details: {
+          projectName: project?.name || "",
+          assetTitle: title,
+          assetValue: Number(value),
+          note: note || "No note",
+          oldValue: oldAsset?.value,
+          oldTitle: oldAsset?.title
+        }
+      });
+    } else {
+      const newAssetRef = await addDoc(collection(db, "projectAssets"), {
+        ...payload,
+        createdAt: serverTimestamp(),
+      });
+
+      // Log audit for add
+      await logAuditEvent({
+        action: "asset_added",
+        collectionName: "projectAssets",
+        documentId: newAssetRef.id,
+        details: {
+          projectName: project?.name || "",
+          assetTitle: title,
+          assetValue: Number(value),
+          note: note || "No note"
+        }
+      });
+    }
+
+    resetForm();
+    load();
+  };
+
+  /* ================= EDIT ================= */
+  const editAsset = (asset: any) => {
+    setEditingId(asset.id);
+    setProjectId(asset.projectId);
+    setTitle(asset.title);
+    setValue(String(asset.value));
+    setNote(asset.note || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /* ================= DELETE ================= */
+  const deleteAsset = async (id: string) => {
+    const asset = assets.find(a => a.id === id);
+    const ok = confirm("Are you sure you want to delete this asset?");
+    if (!ok) return;
+
+    await deleteDoc(doc(db, "projectAssets", id));
+
+    // Log audit for delete
     await logAuditEvent({
-      action: "asset_added",
+      action: "asset_deleted",
       collectionName: "projectAssets",
-      documentId: newAssetRef.id,
+      documentId: id,
       details: {
-        projectName: project?.name,
-        assetTitle: title,
-        assetValue: `₹${money(Number(value))}`,
-        note: note || "No note",
-      },
+        projectName: asset?.projectName || "Unknown",
+        assetTitle: asset?.title || "Unknown",
+        assetValue: asset?.value || 0,
+        note: asset?.note || "No note"
+      }
     });
-
-    setTitle("");
-    setValue("");
-    setNote("");
-    setProjectId("");
 
     load();
   };
@@ -118,10 +188,10 @@ export default function AssetManagementPage() {
         Project Assets
       </h1>
 
-      {/* ADD ASSET */}
+      {/* ADD/EDIT ASSET */}
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-6">
         <h2 className="text-lg font-semibold mb-3">
-          Add Asset
+          {editingId ? "Edit Asset" : "Add Asset"}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -158,12 +228,25 @@ export default function AssetManagementPage() {
           />
         </div>
 
-        <button
-          onClick={addAsset}
-          className="mt-4 px-4 py-2 bg-green-600 text-white rounded"
-        >
-          Save Asset
-        </button>
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={saveAsset}
+            className={`px-4 py-2 text-white rounded ${
+              editingId ? "bg-blue-600" : "bg-green-600"
+            }`}
+          >
+            {editingId ? "Update Asset" : "Save Asset"}
+          </button>
+
+          {editingId && (
+            <button
+              onClick={resetForm}
+              className="px-4 py-2 border rounded"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SEARCH */}
@@ -198,7 +281,7 @@ export default function AssetManagementPage() {
           {filtered.map(a=>(
             <li
               key={a.id}
-              className="p-3 border rounded bg-gray-50 flex justify-between"
+              className="p-3 border rounded bg-gray-50 flex justify-between items-center"
             >
               <div>
                 <p className="font-semibold text-black">
@@ -208,15 +291,31 @@ export default function AssetManagementPage() {
                   {a.projectName}
                 </p>
                 {a.note && (
-                  <p className="text-xs text-black">
+                  <p className="text-xs text-gray-600">
                     {a.note}
                   </p>
                 )}
               </div>
 
-              <span className="font-bold text-green-700">
-                ₹{money(a.value)}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="font-bold text-green-700">
+                  ₹{money(a.value)}
+                </span>
+
+                <button
+                  onClick={() => editAsset(a)}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => deleteAsset(a.id)}
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>

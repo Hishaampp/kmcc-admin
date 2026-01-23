@@ -11,7 +11,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
+import { logAuditEvent } from "@/lib/auditLog";
 
 export default function InvestmentPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -56,19 +56,23 @@ export default function InvestmentPage() {
     };
 
     if(editingId){
+      // Find old record for audit comparison
+      const oldInvestment = records.find(r => r.id === editingId);
+
       await updateDoc(doc(db,"projectInvestments",editingId), payload);
       
-      // 🔔 LOG AUDIT EVENT
+      // Log audit for edit
       await logAuditEvent({
-        action: "investment_added",
+        action: "investment_edited",
         collectionName: "projectInvestments",
         documentId: editingId,
         details: {
-          action: "Updated",
-          projectName: project?.name,
+          projectName: project?.name || "",
           investmentTitle: title,
-          amount: `₹${f(Number(amount))}`,
-        },
+          amount: Number(amount),
+          oldAmount: oldInvestment?.amount,
+          oldTitle: oldInvestment?.title
+        }
       });
     } else {
       const newRef = await addDoc(collection(db,"projectInvestments"),{
@@ -76,16 +80,16 @@ export default function InvestmentPage() {
         createdAt: serverTimestamp()
       });
       
-      // 🔔 LOG AUDIT EVENT
+      // Log audit for add
       await logAuditEvent({
         action: "investment_added",
         collectionName: "projectInvestments",
         documentId: newRef.id,
         details: {
-          projectName: project?.name,
+          projectName: project?.name || "",
           investmentTitle: title,
-          amount: `₹${f(Number(amount))}`,
-        },
+          amount: Number(amount)
+        }
       });
     }
 
@@ -104,22 +108,21 @@ export default function InvestmentPage() {
 
   /* DELETE */
   const deleteInvestment = async (id:string) => {
-    if(!confirm("Delete this investment?")) return;
-    
     const investment = records.find(r => r.id === id);
+    if(!confirm("Delete this investment?")) return;
     
     await deleteDoc(doc(db,"projectInvestments",id));
     
-    // 🔔 LOG AUDIT EVENT
+    // Log audit for delete
     await logAuditEvent({
       action: "investment_deleted",
       collectionName: "projectInvestments",
       documentId: id,
       details: {
-        projectName: investment?.projectName,
-        investmentTitle: investment?.title,
-        amount: `₹${f(investment?.amount)}`,
-      },
+        projectName: investment?.projectName || "Unknown",
+        investmentTitle: investment?.title || "Unknown",
+        amount: investment?.amount || 0
+      }
     });
     
     load();
@@ -151,7 +154,12 @@ export default function InvestmentPage() {
         </div>
 
         <div className="mt-3 flex gap-3">
-          <button onClick={saveInvestment} className="px-4 py-2 bg-blue-600 text-white rounded">
+          <button 
+            onClick={saveInvestment} 
+            className={`px-4 py-2 text-white rounded ${
+              editingId ? "bg-blue-600" : "bg-green-600"
+            }`}
+          >
             {editingId ? "Update Investment" : "Save Investment"}
           </button>
 
@@ -173,15 +181,32 @@ export default function InvestmentPage() {
       <div className="bg-white p-4 rounded-xl border">
         <h2 className="font-semibold mb-3">Investment Records</h2>
 
+        {records.length === 0 && (
+          <p className="text-gray-600">No investments found.</p>
+        )}
+
         <ul className="divide-y">
           {records.map(r=>(
-            <li key={r.id} className="py-2 flex justify-between items-center">
-              <span>{r.projectName} — {r.title}</span>
+            <li key={r.id} className="py-3 flex justify-between items-center">
+              <div>
+                <p className="font-semibold">{r.title}</p>
+                <p className="text-sm text-gray-600">{r.projectName}</p>
+              </div>
 
               <div className="flex gap-3 items-center">
-                <span className="font-bold">₹{f(r.amount)}</span>
-                <button onClick={()=>editInvestment(r)} className="text-blue-600 text-sm">Edit</button>
-                <button onClick={()=>deleteInvestment(r.id)} className="text-red-600 text-sm">Delete</button>
+                <span className="font-bold text-blue-700">₹{f(r.amount)}</span>
+                <button 
+                  onClick={()=>editInvestment(r)} 
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded"
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={()=>deleteInvestment(r.id)} 
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded"
+                >
+                  Delete
+                </button>
               </div>
             </li>
           ))}

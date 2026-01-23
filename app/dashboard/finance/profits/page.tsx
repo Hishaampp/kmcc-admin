@@ -11,7 +11,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
+import { logAuditEvent } from "@/lib/auditLog";
 
 export default function ProfitPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -61,20 +61,25 @@ export default function ProfitPage() {
     };
 
     if(editingId){
+      // Find old record for audit comparison
+      const oldProfit = records.find(r => r.id === editingId);
+
       await updateDoc(doc(db,"projectProfits",editingId), payload);
       
-      // 🔔 LOG AUDIT EVENT
+      // Log audit for edit
       await logAuditEvent({
-        action: "profit_added",
+        action: "profit_edited",
         collectionName: "projectProfits",
         documentId: editingId,
         details: {
-          action: "Updated",
-          projectName: project?.name,
+          projectName: project?.name || "",
           profitTitle: title,
-          amount: `₹${f(Number(amount))}`,
-          period: month && year ? `${month} ${year}` : "Not specified",
-        },
+          amount: Number(amount),
+          month: month || "Not specified",
+          year: year || "Not specified",
+          oldAmount: oldProfit?.amount,
+          oldTitle: oldProfit?.title
+        }
       });
     } else {
       const newRef = await addDoc(collection(db,"projectProfits"),{
@@ -82,17 +87,18 @@ export default function ProfitPage() {
         createdAt: serverTimestamp()
       });
       
-      // 🔔 LOG AUDIT EVENT
+      // Log audit for add
       await logAuditEvent({
         action: "profit_added",
         collectionName: "projectProfits",
         documentId: newRef.id,
         details: {
-          projectName: project?.name,
+          projectName: project?.name || "",
           profitTitle: title,
-          amount: `₹${f(Number(amount))}`,
-          period: month && year ? `${month} ${year}` : "Not specified",
-        },
+          amount: Number(amount),
+          month: month || "Not specified",
+          year: year || "Not specified"
+        }
       });
     }
 
@@ -105,29 +111,29 @@ export default function ProfitPage() {
     setProjectId(r.projectId);
     setTitle(r.title);
     setAmount(String(r.amount));
-    setMonth(r.month);
-    setYear(r.year);
+    setMonth(r.month || "");
+    setYear(r.year || "");
     window.scrollTo({top:0,behavior:"smooth"});
   };
 
   const deleteProfit = async (id:string) => {
-    if(!confirm("Delete this profit entry?")) return;
-    
     const profit = records.find(r => r.id === id);
+    if(!confirm("Delete this profit entry?")) return;
     
     await deleteDoc(doc(db,"projectProfits",id));
     
-    // 🔔 LOG AUDIT EVENT
+    // Log audit for delete
     await logAuditEvent({
       action: "profit_deleted",
       collectionName: "projectProfits",
       documentId: id,
       details: {
-        projectName: profit?.projectName,
-        profitTitle: profit?.title,
-        amount: `₹${f(profit?.amount)}`,
-        period: profit?.month && profit?.year ? `${profit.month} ${profit.year}` : "Not specified",
-      },
+        projectName: profit?.projectName || "Unknown",
+        profitTitle: profit?.title || "Unknown",
+        amount: profit?.amount || 0,
+        month: profit?.month || "Not specified",
+        year: profit?.year || "Not specified"
+      }
     });
     
     load();
@@ -146,7 +152,7 @@ export default function ProfitPage() {
           {editingId ? "Edit Profit" : "Add Profit"}
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <select value={projectId} onChange={e=>setProjectId(e.target.value)} className="border p-2">
             <option value="">Select Project</option>
             {projects.map(p=>(
@@ -166,7 +172,12 @@ export default function ProfitPage() {
         </div>
 
         <div className="mt-3 flex gap-3">
-          <button onClick={saveProfit} className="px-4 py-2 bg-green-600 text-white rounded">
+          <button 
+            onClick={saveProfit} 
+            className={`px-4 py-2 text-white rounded ${
+              editingId ? "bg-blue-600" : "bg-green-600"
+            }`}
+          >
             {editingId ? "Update Profit" : "Save Profit"}
           </button>
 
@@ -188,15 +199,35 @@ export default function ProfitPage() {
       <div className="bg-white p-4 rounded-xl border">
         <h2 className="font-semibold mb-3">Profit Records</h2>
 
+        {records.length === 0 && (
+          <p className="text-gray-600">No profit records found.</p>
+        )}
+
         <ul className="divide-y">
           {records.map(r=>(
-            <li key={r.id} className="py-2 flex justify-between items-center">
-              <span>{r.projectName} — {r.title}</span>
+            <li key={r.id} className="py-3 flex justify-between items-center">
+              <div>
+                <p className="font-semibold">{r.title}</p>
+                <p className="text-sm text-gray-600">
+                  {r.projectName}
+                  {r.month && r.year && ` • ${r.month} ${r.year}`}
+                </p>
+              </div>
 
               <div className="flex gap-3 items-center">
                 <span className="font-bold text-green-700">₹{f(r.amount)}</span>
-                <button onClick={()=>editProfit(r)} className="text-blue-600 text-sm">Edit</button>
-                <button onClick={()=>deleteProfit(r.id)} className="text-red-600 text-sm">Delete</button>
+                <button 
+                  onClick={()=>editProfit(r)} 
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded"
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={()=>deleteProfit(r.id)} 
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded"
+                >
+                  Delete
+                </button>
               </div>
             </li>
           ))}

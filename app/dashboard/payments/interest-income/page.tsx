@@ -12,6 +12,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { logAuditEvent } from "@/lib/auditLog";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -84,11 +85,44 @@ export default function InterestIncomePage() {
     };
 
     if (editingId) {
+      // Find old record for audit comparison
+      const oldRecord = records.find(r => r.id === editingId);
+      
       await updateDoc(doc(db, "interestLedger", editingId), payload);
+
+      // Log audit for edit
+      await logAuditEvent({
+        action: type === "income" ? "other_income_edited" : "expense_edited",
+        collectionName: "interestLedger",
+        documentId: editingId,
+        details: {
+          title,
+          type,
+          amount: Number(amount),
+          month,
+          year,
+          oldAmount: oldRecord?.amount,
+          oldType: oldRecord?.type
+        }
+      });
     } else {
-      await addDoc(collection(db, "interestLedger"), {
+      const docRef = await addDoc(collection(db, "interestLedger"), {
         ...payload,
         createdAt: serverTimestamp(),
+      });
+
+      // Log audit for add
+      await logAuditEvent({
+        action: type === "income" ? "other_income_added" : "expense_added",
+        collectionName: "interestLedger",
+        documentId: docRef.id,
+        details: {
+          title,
+          type,
+          amount: Number(amount),
+          month,
+          year
+        }
       });
     }
 
@@ -98,8 +132,25 @@ export default function InterestIncomePage() {
 
   // ================= DELETE =================
   const deleteRecord = async (id: string) => {
+    const record = records.find(r => r.id === id);
     if (!confirm("Delete this record?")) return;
+    
     await deleteDoc(doc(db, "interestLedger", id));
+
+    // Log audit for delete
+    await logAuditEvent({
+      action: record?.type === "income" ? "other_income_deleted" : "expense_deleted",
+      collectionName: "interestLedger",
+      documentId: id,
+      details: {
+        title: record?.title || "Unknown",
+        type: record?.type || "income",
+        amount: record?.amount || 0,
+        month: record?.month || "",
+        year: record?.year || ""
+      }
+    });
+
     load();
   };
 
