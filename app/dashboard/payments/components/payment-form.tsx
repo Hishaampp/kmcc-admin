@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 
-export default function PaymentForm({ projects, units, members, onSubmit }: any) {
+export default function PaymentForm({
+  projects,
+  units,
+  members,
+  onSubmit,
+  selectedMonth,
+  selectedYear,
+  onMonthChange,
+  onYearChange,
+}: any) {
   const [projectId, setProjectId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [memberId, setMemberId] = useState("");
-  const [month, setMonth] = useState("");
-  const [year, setYear] = useState("");
   const [amount, setAmount] = useState("");
 
   const MONTHS = [
@@ -15,27 +22,35 @@ export default function PaymentForm({ projects, units, members, onSubmit }: any)
     "July","August","September","October","November","December"
   ];
 
-  const YEARS = Array.from({ length: 6 }, (_, i) => 2023 + i);
+  // ✅ Extended years: 2000 to currentYear + 5
+  const currentYear = new Date().getFullYear();
+  const YEARS = Array.from(
+    { length: currentYear + 5 - 2000 + 1 },
+    (_, i) => 2000 + i
+  );
 
   const filteredMembers = members.filter((m: any) =>
     unitId ? m.unitId === unitId && m.status !== "quit" : false
   );
 
   const handleSubmit = () => {
-    if (!projectId || !unitId || !memberId || !month || !year || !amount) return;
+    if (!projectId || !unitId || !memberId || !selectedMonth || !selectedYear || !amount) return;
 
     onSubmit({
       projectId,
       unitId,
       memberId,
-      month,
-      year,
-      amount
+      month: selectedMonth,
+      year: selectedYear,
+      amount,
     });
 
-    setMonth("");
-    setYear("");
+    // ✅ Only reset payment-specific fields — month & year stay constant
+    setProjectId("");
+    setUnitId("");
+    setMemberId("");
     setAmount("");
+    // selectedMonth and selectedYear are NOT reset — controlled by parent
   };
 
   return (
@@ -73,14 +88,22 @@ export default function PaymentForm({ projects, units, members, onSubmit }: any)
           ))}
         </select>
 
-        <select value={month} onChange={e => setMonth(e.target.value)}
-          className="border rounded px-3 py-2 text-black">
+        {/* ✅ Month controlled by parent state */}
+        <select
+          value={selectedMonth}
+          onChange={e => onMonthChange(e.target.value)}
+          className="border rounded px-3 py-2 text-black"
+        >
           <option value="">Month</option>
           {MONTHS.map(m => <option key={m}>{m}</option>)}
         </select>
 
-        <select value={year} onChange={e => setYear(e.target.value)}
-          className="border rounded px-3 py-2 text-black">
+        {/* ✅ Year controlled by parent state */}
+        <select
+          value={selectedYear}
+          onChange={e => onYearChange(e.target.value)}
+          className="border rounded px-3 py-2 text-black"
+        >
           <option value="">Year</option>
           {YEARS.map(y => <option key={y}>{y}</option>)}
         </select>

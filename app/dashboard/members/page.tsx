@@ -11,7 +11,7 @@ import {
   deleteDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { logAuditEvent } from "@/lib/auditLog"; // ✅ ADDED
+import { logAuditEvent } from "@/lib/auditLog";
 
 export default function MembersPage() {
 
@@ -28,6 +28,11 @@ export default function MembersPage() {
   const [nomineeContact, setNomineeContact] = useState("");
   const [search, setSearch] = useState("");
 
+  // ✅ NEW: Month & Year state — persists across additions
+  const currentYear = new Date().getFullYear();
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState(String(currentYear));
+
   const [showEditBox, setShowEditBox] = useState(false);
   const [editMember, setEditMember] = useState<any>(null);
 
@@ -38,6 +43,28 @@ export default function MembersPage() {
   const [quitMember, setQuitMember] = useState<any>(null);
   const [quitProjectId, setQuitProjectId] = useState("");
   const [quitNote, setQuitNote] = useState("");
+
+  // ✅ NEW: Month and year options
+  const months = [
+    { value: "1", label: "January" },
+    { value: "2", label: "February" },
+    { value: "3", label: "March" },
+    { value: "4", label: "April" },
+    { value: "5", label: "May" },
+    { value: "6", label: "June" },
+    { value: "7", label: "July" },
+    { value: "8", label: "August" },
+    { value: "9", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
+  ];
+
+  // ✅ NEW: Years from 2000 up to currentYear + 5
+  const years = Array.from(
+    { length: currentYear + 5 - 2000 + 1 },
+    (_, i) => String(2000 + i)
+  );
 
   // FETCH
   const fetchUnits = async () => {
@@ -79,12 +106,15 @@ export default function MembersPage() {
       nomineeRelation,
       nomineeContact,
 
+      // ✅ NEW: Save month and year with member
+      joinMonth: selectedMonth,
+      joinYear: selectedYear,
+
       quitProjects: [],
 
       createdAt: serverTimestamp(),
     });
 
-    // 🔔 LOG AUDIT EVENT
     await logAuditEvent({
       action: "member_added",
       collectionName: "members",
@@ -97,6 +127,7 @@ export default function MembersPage() {
       },
     });
 
+    // ✅ Only reset member-specific fields — month & year stay constant
     setMemberName("");
     setMemberNumber("");
     setSelectedUnit("");
@@ -104,6 +135,7 @@ export default function MembersPage() {
     setNomineeName("");
     setNomineeRelation("");
     setNomineeContact("");
+    // selectedMonth and selectedYear are intentionally NOT reset
 
     fetchMembers();
   };
@@ -121,7 +153,6 @@ export default function MembersPage() {
       nomineeContact: editMember.nomineeContact || "",
     });
 
-    // 🔔 LOG AUDIT EVENT
     await logAuditEvent({
       action: "member_edited",
       collectionName: "members",
@@ -143,7 +174,6 @@ export default function MembersPage() {
     
     await deleteDoc(doc(db, "members", deleteMemberId));
 
-    // 🔔 LOG AUDIT EVENT
     await logAuditEvent({
       action: "member_deleted",
       collectionName: "members",
@@ -189,7 +219,6 @@ export default function MembersPage() {
       status: "active"
     });
 
-    // 🔔 LOG AUDIT EVENT
     await logAuditEvent({
       action: "member_quit",
       collectionName: "members",
@@ -245,6 +274,30 @@ export default function MembersPage() {
           <input value={nomineeRelation} onChange={e => setNomineeRelation(e.target.value)} placeholder="Nominee Relation (Optional)" className="border px-3 py-2 text-black rounded"/>
           <input value={nomineeContact} onChange={e => setNomineeContact(e.target.value)} placeholder="Nominee Contact (Optional)" className="border px-3 py-2 text-black rounded"/>
 
+          {/* ✅ NEW: Month selector */}
+          <select
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(e.target.value)}
+            className="border px-3 py-2 text-black rounded"
+          >
+            <option value="">Select Month</option>
+            {months.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+
+          {/* ✅ NEW: Year selector */}
+          <select
+            value={selectedYear}
+            onChange={e => setSelectedYear(e.target.value)}
+            className="border px-3 py-2 text-black rounded"
+          >
+            <option value="">Select Year</option>
+            {years.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+
         </div>
 
         <button onClick={addMember} className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">
@@ -290,6 +343,13 @@ export default function MembersPage() {
                   <p className="text-sm text-gray-600">Member No: #{m.number}</p>
                   <p className="text-sm text-gray-600">Unit: {m.unitName}</p>
                   <p className="text-sm">📞 {m.contactNumber || "Not Added"}</p>
+                  
+                  {/* ✅ NEW: Show join month/year in member card */}
+                  {(m.joinMonth || m.joinYear) && (
+                    <p className="text-sm text-gray-500">
+                      Joined: {m.joinMonth ? months.find(mo => mo.value === m.joinMonth)?.label : ""} {m.joinYear || ""}
+                    </p>
+                  )}
                   
                   {hasQuitSomeProjects && (
                     <div className="mt-2 text-xs text-orange-600">
