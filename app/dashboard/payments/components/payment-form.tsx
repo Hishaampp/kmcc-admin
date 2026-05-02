@@ -11,9 +11,11 @@ export default function PaymentForm({
   selectedYear,
   onMonthChange,
   onYearChange,
+  selectedProjectId,
+  selectedUnitId,
+  onProjectChange,
+  onUnitChange,
 }: any) {
-  const [projectId, setProjectId] = useState("");
-  const [unitId, setUnitId] = useState("");
   const [memberId, setMemberId] = useState("");
   const [amount, setAmount] = useState("");
 
@@ -22,31 +24,28 @@ export default function PaymentForm({
     "July","August","September","October","November","December"
   ];
 
-  // ✅ Years from 2013 to currentYear + 5
-  const currentYear = new Date().getFullYear();
   const YEARS = Array.from(
-  { length: 2050 - 2013 + 1 },
-  (_, i) => 2013 + i
-);
+    { length: 2050 - 2023 + 1 },
+    (_, i) => 2023 + i
+  );
 
   const filteredMembers = members.filter((m: any) =>
-    unitId ? m.unitId === unitId && m.status !== "quit" : false
+    selectedUnitId ? m.unitId === selectedUnitId && m.status !== "quit" : false
   );
 
   const handleSubmit = () => {
-    if (!projectId || !unitId || !memberId || !selectedMonth || !selectedYear || !amount) return;
+    if (!selectedProjectId || !selectedUnitId || !memberId || !selectedMonth || !selectedYear || !amount) return;
 
     onSubmit({
-      projectId,
-      unitId,
+      projectId: selectedProjectId,
+      unitId: selectedUnitId,
       memberId,
       month: selectedMonth,
       year: selectedYear,
       amount,
     });
 
-    setProjectId("");
-    setUnitId("");
+    // ✅ Only member and amount reset — project, unit, month, year stay constant
     setMemberId("");
     setAmount("");
   };
@@ -60,24 +59,35 @@ export default function PaymentForm({
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 
-        <select value={projectId} onChange={e => setProjectId(e.target.value)}
-          className="border rounded px-3 py-2 text-black">
+        {/* ✅ Controlled by parent */}
+        <select
+          value={selectedProjectId}
+          onChange={e => onProjectChange(e.target.value)}
+          className="border rounded px-3 py-2 text-black"
+        >
           <option value="">Select Project</option>
           {projects.map((p: any) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
 
-        <select value={unitId} onChange={e => setUnitId(e.target.value)}
-          className="border rounded px-3 py-2 text-black">
+        {/* ✅ Controlled by parent */}
+        <select
+          value={selectedUnitId}
+          onChange={e => onUnitChange(e.target.value)}
+          className="border rounded px-3 py-2 text-black"
+        >
           <option value="">Select Unit</option>
           {units.map((u: any) => (
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
 
-        <select value={memberId} onChange={e => setMemberId(e.target.value)}
-          className="border rounded px-3 py-2 text-black">
+        <select
+          value={memberId}
+          onChange={e => setMemberId(e.target.value)}
+          className="border rounded px-3 py-2 text-black"
+        >
           <option value="">Select Member</option>
           {filteredMembers.map((m: any) => (
             <option key={m.id} value={m.id}>

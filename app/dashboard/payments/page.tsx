@@ -23,7 +23,6 @@ export default function PaymentsPage() {
 
   const [search, setSearch] = useState("");
 
-  // ✅ Persistent month & year — defaults to current month/year
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
     currentDate.toLocaleString("default", { month: "long" })
@@ -31,6 +30,9 @@ export default function PaymentsPage() {
   const [selectedYear, setSelectedYear] = useState(
     String(currentDate.getFullYear())
   );
+  // ✅ Project and unit also persistent now
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [selectedUnitId, setSelectedUnitId] = useState("");
 
   if (loading) {
     return (
@@ -66,7 +68,9 @@ export default function PaymentsPage() {
       amount: Number(data.amount),
     });
 
-    // ✅ Keep month & year in sync after each payment
+    // ✅ Sync all persistent fields after save
+    setSelectedProjectId(data.projectId);
+    setSelectedUnitId(data.unitId);
     setSelectedMonth(data.month);
     setSelectedYear(data.year);
   };
@@ -133,7 +137,7 @@ export default function PaymentsPage() {
         totalUnits={uniqueUnits}
       />
 
-      {/* ✅ All 4 month/year props now passed correctly */}
+      {/* ✅ All 8 props passed */}
       <PaymentForm
         projects={projects}
         units={units}
@@ -143,6 +147,10 @@ export default function PaymentsPage() {
         selectedYear={selectedYear}
         onMonthChange={setSelectedMonth}
         onYearChange={setSelectedYear}
+        selectedProjectId={selectedProjectId}
+        selectedUnitId={selectedUnitId}
+        onProjectChange={setSelectedProjectId}
+        onUnitChange={setSelectedUnitId}
       />
 
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-4">
