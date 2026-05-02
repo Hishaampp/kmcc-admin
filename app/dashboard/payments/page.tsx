@@ -23,6 +23,15 @@ export default function PaymentsPage() {
 
   const [search, setSearch] = useState("");
 
+  // ✅ Persistent month & year — defaults to current month/year
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(
+    currentDate.toLocaleString("default", { month: "long" })
+  );
+  const [selectedYear, setSelectedYear] = useState(
+    String(currentDate.getFullYear())
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
@@ -56,6 +65,10 @@ export default function PaymentsPage() {
       year: data.year,
       amount: Number(data.amount),
     });
+
+    // ✅ Keep month & year in sync after each payment
+    setSelectedMonth(data.month);
+    setSelectedYear(data.year);
   };
 
   const monthIndex = (m?: string) => {
@@ -120,11 +133,16 @@ export default function PaymentsPage() {
         totalUnits={uniqueUnits}
       />
 
+      {/* ✅ All 4 month/year props now passed correctly */}
       <PaymentForm
         projects={projects}
         units={units}
         members={members}
         onSubmit={handleAddPayment}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        onMonthChange={setSelectedMonth}
+        onYearChange={setSelectedYear}
       />
 
       <div className="bg-white p-4 rounded-xl border shadow-sm mb-4">

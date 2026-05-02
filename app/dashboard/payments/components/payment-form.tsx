@@ -22,12 +22,12 @@ export default function PaymentForm({
     "July","August","September","October","November","December"
   ];
 
-  // ✅ Extended years: 2000 to currentYear + 5
+  // ✅ Years from 2013 to currentYear + 5
   const currentYear = new Date().getFullYear();
   const YEARS = Array.from(
-    { length: currentYear + 5 - 2000 + 1 },
-    (_, i) => 2000 + i
-  );
+  { length: 2050 - 2013 + 1 },
+  (_, i) => 2013 + i
+);
 
   const filteredMembers = members.filter((m: any) =>
     unitId ? m.unitId === unitId && m.status !== "quit" : false
@@ -45,12 +45,10 @@ export default function PaymentForm({
       amount,
     });
 
-    // ✅ Only reset payment-specific fields — month & year stay constant
     setProjectId("");
     setUnitId("");
     setMemberId("");
     setAmount("");
-    // selectedMonth and selectedYear are NOT reset — controlled by parent
   };
 
   return (
@@ -88,7 +86,6 @@ export default function PaymentForm({
           ))}
         </select>
 
-        {/* ✅ Month controlled by parent state */}
         <select
           value={selectedMonth}
           onChange={e => onMonthChange(e.target.value)}
@@ -98,7 +95,6 @@ export default function PaymentForm({
           {MONTHS.map(m => <option key={m}>{m}</option>)}
         </select>
 
-        {/* ✅ Year controlled by parent state */}
         <select
           value={selectedYear}
           onChange={e => onYearChange(e.target.value)}
