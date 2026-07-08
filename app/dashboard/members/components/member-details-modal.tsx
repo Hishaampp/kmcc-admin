@@ -199,11 +199,13 @@ export default function MemberDetailsModal({ member, payments, loading, onClose,
   );
 
   // ✅ NEW: opens a clean, full-page printable statement in a new tab
+  // Includes every section shown in the modal: profile, total deposited,
+  // project-wise contribution, share value summary, quit history, payment history.
   const printStatement = () => {
     const win = window.open("", "_blank");
     if (!win) return;
 
-    const rowsHtml = shareRows
+    const shareRowsHtml = shareRows
       .map(
         r => `
       <tr>
@@ -217,26 +219,92 @@ export default function MemberDetailsModal({ member, payments, loading, onClose,
       )
       .join("");
 
+    const projectContributionHtml = projectRows
+      .map(row => {
+        const hasQuit = quitProjects.includes(row.projectId);
+        return `
+      <tr>
+        <td>${row.projectName}${hasQuit ? " (Quit)" : ""}</td>
+        <td style="text-align:right">${row.count}</td>
+        <td style="text-align:right">₹${money(row.total)}</td>
+      </tr>`;
+      })
+      .join("");
+
+    const quitHistoryHtml = quitProjects.length
+      ? quitProjects
+          .map((pId: string) => {
+            const info = member.quitHistory?.[pId];
+            return `
+      <tr>
+        <td>${info?.projectName || pId}</td>
+        <td>${info?.note || "-"}</td>
+      </tr>`;
+          })
+          .join("")
+      : `<tr><td colspan="2">No quit history.</td></tr>`;
+
+    const paymentHistoryHtml = sortedPayments.length
+      ? sortedPayments
+          .map(
+            p => `
+      <tr>
+        <td>${p.projectName}</td>
+        <td>${p.month}</td>
+        <td>${p.year}</td>
+        <td style="text-align:right">₹${money(p.amount)}</td>
+      </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="4">No payments recorded yet.</td></tr>`;
+
     win.document.write(`
       <html>
         <head>
-          <title>${member.name} - Share Statement</title>
+          <title>${member.name} - Full Member Statement</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 40px; color: #000; }
             h1 { font-size: 22px; margin-bottom: 4px; }
-            .sub { color: #555; margin-bottom: 24px; font-size: 13px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #999; padding: 8px 10px; font-size: 13px; }
+            h2 { font-size: 16px; margin: 28px 0 8px; border-bottom: 2px solid #333; padding-bottom: 4px; }
+            .sub { color: #555; margin-bottom: 20px; font-size: 13px; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 40px; margin-bottom: 8px; font-size: 13px; }
+            .info-grid .label { color: #666; font-size: 11px; }
+            .total-box { background: #f0fbf3; border: 1px solid #bfe8c9; border-radius: 6px; padding: 14px 18px; margin-top: 10px; }
+            .total-box .amount { font-size: 24px; font-weight: bold; color: #15803d; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { border: 1px solid #999; padding: 6px 10px; font-size: 12px; }
             th { background: #f2f2f2; text-align: left; }
             tfoot td { font-weight: bold; background: #f7f7f7; }
             @media print {
-              @page { size: A4 landscape; margin: 16mm; }
+              @page { size: A4 landscape; margin: 14mm; }
+              h2 { break-before: auto; }
             }
           </style>
         </head>
         <body>
           <h1>${member.name}</h1>
           <div class="sub">Member #${member.number} · ${member.unitName || ""}</div>
+
+          <div class="info-grid">
+            <div><div class="label">Contact Number</div>${member.contactNumber || "Not Added"}</div>
+            <div><div class="label">Joined</div>${member.joinMonth ? JOIN_MONTHS[member.joinMonth] : ""} ${member.joinYear || ""}</div>
+            <div><div class="label">Nominee</div>${member.nomineeName || "Not Added"}</div>
+            <div><div class="label">Nominee Contact</div>${member.nomineeContact || "Not Added"}</div>
+          </div>
+
+          <div class="total-box">
+            <div class="label">Total Deposited (All Projects)</div>
+            <div class="amount">₹${money(totalDeposited)}</div>
+            <div class="label">${payments.length} payment${payments.length !== 1 ? "s" : ""} recorded</div>
+          </div>
+
+          <h2>Project-wise Contribution</h2>
+          <table>
+            <thead><tr><th>Project</th><th style="text-align:right">Payments</th><th style="text-align:right">Total Paid</th></tr></thead>
+            <tbody>${projectContributionHtml || `<tr><td colspan="3">No payments recorded yet.</td></tr>`}</tbody>
+          </table>
+
+          <h2>Share Value Summary</h2>
           <table>
             <thead>
               <tr>
@@ -244,7 +312,8 @@ export default function MemberDetailsModal({ member, payments, loading, onClose,
                 <th>Total Shares</th><th>Current Share Value</th><th>Total Value</th>
               </tr>
             </thead>
-            <tbody>${rowsHtml}</tbody>
+            <tbody>${shareRowsHtml || `<tr><td colspan="6">No share value data yet.</td></tr>`}</tbody>
+            ${shareRows.length ? `
             <tfoot>
               <tr>
                 <td>Grand Total</td>
@@ -254,8 +323,21 @@ export default function MemberDetailsModal({ member, payments, loading, onClose,
                 <td style="text-align:right">₹${money2(shareGrandTotal.currentShareValue)}</td>
                 <td style="text-align:right">₹${money(shareGrandTotal.currentValue)}</td>
               </tr>
-            </tfoot>
+            </tfoot>` : ""}
           </table>
+
+          <h2>Quit History</h2>
+          <table>
+            <thead><tr><th>Project</th><th>Reason</th></tr></thead>
+            <tbody>${quitHistoryHtml}</tbody>
+          </table>
+
+          <h2>Payment History</h2>
+          <table>
+            <thead><tr><th>Project</th><th>Month</th><th>Year</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody>${paymentHistoryHtml}</tbody>
+          </table>
+
           <script>window.onload = () => window.print();</script>
         </body>
       </html>
@@ -345,10 +427,10 @@ export default function MemberDetailsModal({ member, payments, loading, onClose,
               <h3 className="font-semibold">Share Value Summary</h3>
               <button
                 onClick={printStatement}
-                disabled={shareRows.length === 0}
+                disabled={shareRows.length === 0 && payments.length === 0}
                 className="bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-900 transition text-sm disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                🖨️ Print Statement
+                🖨️ Print Full Details
               </button>
             </div>
 
