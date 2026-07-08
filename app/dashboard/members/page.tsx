@@ -10,8 +10,11 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  query,
+  where,
 } from "firebase/firestore";
 import { logAuditEvent } from "@/lib/auditLog";
+import MemberDetailsModal from "./components/member-details-modal";
 
 export default function MembersPage() {
 
@@ -28,7 +31,7 @@ export default function MembersPage() {
   const [nomineeContact, setNomineeContact] = useState("");
   const [search, setSearch] = useState("");
 
-  // ✅ NEW: Month & Year state — persists across additions
+  // Month & Year state — persists across additions
   const currentYear = new Date().getFullYear();
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
@@ -44,7 +47,13 @@ export default function MembersPage() {
   const [quitProjectId, setQuitProjectId] = useState("");
   const [quitNote, setQuitNote] = useState("");
 
-  // ✅ NEW: Month and year options
+  // ✅ NEW: Member full-details modal state
+  const [showDetailsBox, setShowDetailsBox] = useState(false);
+  const [detailsMember, setDetailsMember] = useState<any>(null);
+  const [memberPayments, setMemberPayments] = useState<any[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+
+  // Month and year options
   const months = [
     { value: "1", label: "January" },
     { value: "2", label: "February" },
@@ -60,7 +69,7 @@ export default function MembersPage() {
     { value: "12", label: "December" },
   ];
 
-  // ✅ NEW: Years from 2000 up to currentYear + 5
+  // Years from 2000 up to currentYear + 5
   const years = Array.from(
     { length: currentYear + 5 - 2000 + 1 },
     (_, i) => String(2000 + i)
@@ -106,7 +115,7 @@ export default function MembersPage() {
       nomineeRelation,
       nomineeContact,
 
-      // ✅ NEW: Save month and year with member
+      // Save month and year with member
       joinMonth: selectedMonth,
       joinYear: selectedYear,
 
@@ -127,7 +136,7 @@ export default function MembersPage() {
       },
     });
 
-    // ✅ Only reset member-specific fields — month & year stay constant
+    // Only reset member-specific fields — month & year stay constant
     setMemberName("");
     setMemberNumber("");
     setSelectedUnit("");
@@ -240,6 +249,23 @@ export default function MembersPage() {
     alert(`✅ ${quitMember.name} has quit from ${project?.name}`);
   };
 
+  // ✅ NEW: Fetch a single member's full payment history and open the details modal
+  const openMemberDetails = async (member: any) => {
+    setDetailsMember(member);
+    setShowDetailsBox(true);
+    setLoadingPayments(true);
+    try {
+      const q = query(collection(db, "payments"), where("memberId", "==", member.id));
+      const snap = await getDocs(q);
+      setMemberPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Failed to load member payments", err);
+      setMemberPayments([]);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
   const filteredMembers = members.filter(m =>
     m.name?.toLowerCase().includes(search.toLowerCase()) ||
     m.number?.toLowerCase().includes(search.toLowerCase()) ||
@@ -274,7 +300,7 @@ export default function MembersPage() {
           <input value={nomineeRelation} onChange={e => setNomineeRelation(e.target.value)} placeholder="Nominee Relation (Optional)" className="border px-3 py-2 text-black rounded"/>
           <input value={nomineeContact} onChange={e => setNomineeContact(e.target.value)} placeholder="Nominee Contact (Optional)" className="border px-3 py-2 text-black rounded"/>
 
-          {/* ✅ NEW: Month selector */}
+          {/* Month selector */}
           <select
             value={selectedMonth}
             onChange={e => setSelectedMonth(e.target.value)}
@@ -286,7 +312,7 @@ export default function MembersPage() {
             ))}
           </select>
 
-          {/* ✅ NEW: Year selector */}
+          {/* Year selector */}
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(e.target.value)}
@@ -344,7 +370,7 @@ export default function MembersPage() {
                   <p className="text-sm text-gray-600">Unit: {m.unitName}</p>
                   <p className="text-sm">📞 {m.contactNumber || "Not Added"}</p>
                   
-                  {/* ✅ NEW: Show join month/year in member card */}
+                  {/* Show join month/year in member card */}
                   {(m.joinMonth || m.joinYear) && (
                     <p className="text-sm text-gray-500">
                       Joined: {m.joinMonth ? months.find(mo => mo.value === m.joinMonth)?.label : ""} {m.joinYear || ""}
@@ -365,6 +391,14 @@ export default function MembersPage() {
                 </div>
 
                 <div className="flex gap-2 flex-wrap justify-end">
+                  {/* ✅ NEW: View Details button */}
+                  <button
+                    onClick={() => openMemberDetails(m)}
+                    className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition text-sm"
+                  >
+                    View Details
+                  </button>
+
                   <button 
                     onClick={() => { 
                       setEditMember({ ...m }); 
@@ -416,6 +450,20 @@ export default function MembersPage() {
           );
         })}
       </div>
+
+      {/* ✅ NEW: MEMBER FULL DETAILS MODAL */}
+      {showDetailsBox && detailsMember && (
+        <MemberDetailsModal
+          member={detailsMember}
+          payments={memberPayments}
+          loading={loadingPayments}
+          onClose={() => {
+            setShowDetailsBox(false);
+            setDetailsMember(null);
+            setMemberPayments([]);
+          }}
+        />
+      )}
 
       {/* EDIT MODAL */}
       {showEditBox && editMember && (
