@@ -457,6 +457,7 @@ export default function MembersPage() {
           member={detailsMember}
           payments={memberPayments}
           loading={loadingPayments}
+          allMembers={members}
           onClose={() => {
             setShowDetailsBox(false);
             setDetailsMember(null);
